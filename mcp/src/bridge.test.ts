@@ -26,6 +26,29 @@ describe('bridge pairing', () => {
     assert.equal(issued.agentName, 'Ada');
   });
 
+  it('does not accept a sign_message from a revoked binding', async () => {
+    const bridge = createBridge();
+    bridge.registerPair('ABCD2345', Date.now() + 60_000);
+    const issued = bridge.issue('ABCD2345', 'Claude');
+    bridge.redeem('ABCD2345', issued.bindToken);
+    bridge.unbind(issued.bindToken);
+    const waiting = bridge.waitForRequest();
+    const result = await bridge.request({
+      id: 'msg',
+      method: 'sign_message',
+      params: { bindToken: issued.bindToken, chain: 'solana', message: 'hello', encoding: 'utf8' },
+    });
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.match(result.error, /not recognized/);
+    const received = await Promise.race([
+      waiting,
+      new Promise((resolve) => {
+        setTimeout(() => resolve('none'), 200);
+      }),
+    ]);
+    assert.equal(received, 'none');
+  });
+
   it('refuses wallet calls before the extension is connected', async () => {
     const bridge = createBridge();
     const result = await bridge.request({

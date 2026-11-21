@@ -108,6 +108,32 @@ describe('local MCP client', { timeout: 40_000 }, () => {
       });
       assert.equal(testnetSign.request.params.network, 'testnet');
       assert.notEqual(testnetSign.request.params.network, 'mainnet');
+
+      const challenge = 'AgentPad Solana Gate Auth\nWallet: abc\nNonce: 1\nExpires: 2';
+      const signedMessage = await roundTrip(client, port, {
+        name: 'spacexpad_sign_message',
+        arguments: {
+          bindToken: issued.bindToken,
+          chain: 'solana',
+          network: 'devnet',
+          encoding: 'utf8',
+          message: challenge,
+        },
+        reply: { signature: 'c2ln', signatureBase58: 'sig58', publicKey: 'SoLana' },
+      });
+      assert.equal(signedMessage.request.method, 'sign_message');
+      assert.equal(signedMessage.request.params.message, challenge);
+      assert.equal(signedMessage.request.params.encoding, 'utf8');
+      assert.equal(signedMessage.request.params.network, 'devnet');
+      assert.equal(signedMessage.request.params.kind, undefined);
+      assert.equal(signedMessage.request.params.serialized, undefined);
+
+      const solanaTestnet = await client.callTool({
+        name: 'spacexpad_sign_message',
+        arguments: { bindToken: issued.bindToken, chain: 'solana', network: 'testnet', message: challenge },
+      });
+      assert.equal(solanaTestnet.isError, true);
+      assert.match(textOf(solanaTestnet), /devnet/);
     } finally {
       await client.close();
       await rm(home, { recursive: true, force: true });
@@ -142,7 +168,11 @@ async function roundTrip(
   await delay(150);
   const call = client.callTool({ name: input.name, arguments: input.arguments });
   const waited = await pending;
-  const request = waited.json.request as { id: string; method: string; params: { network?: string } };
+  const request = waited.json.request as {
+    id: string;
+    method: string;
+    params: { network?: string; message?: string; encoding?: string; kind?: string; serialized?: string };
+  };
   assert.ok(request?.id, 'extension did not receive a request');
   const resultBody = input.replyError
     ? { id: request.id, ok: false, error: input.replyError }

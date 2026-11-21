@@ -75,7 +75,7 @@ The copied pair prompt is short. It tells the agent to read `https://spacexpad.x
 
 ## Networks
 
-Omit `network` and the call uses mainnet. Pass `testnet` or `devnet` only when the user explicitly asked. The server rejects Solana `testnet` and EVM `devnet` instead of mapping them onto another cluster. An explicit testnet or devnet sign or send stays pending until the user confirms it in the popup. A missing confirmation signs nothing. `spacexpad_sign_message` is Solana only. `encoding` defaults to `utf8` and those exact bytes are signed. The popup confirms every message, including mainnet. The returned `signature` is base64 for `POST /api/agent/verify`; `signatureBase58` is the same bytes.
+Omit `network` and the call uses mainnet. Pass `testnet` or `devnet` only when the user explicitly asked. The server rejects Solana `testnet` and EVM `devnet` instead of mapping them onto another cluster. A successfully bound agent has sign and send completed automatically, including `spacexpad_sign_message`, on mainnet and on devnet or testnet. The extension does not wait for a confirmation click. An unbound request, a revoked binding, or a request while the kill switch is on is rejected and nothing is signed. `spacexpad_sign_message` is Solana only. `encoding` defaults to `utf8` and those exact bytes are signed. The returned `signature` is base64 for `POST /api/agent/verify`; `signatureBase58` is the same bytes.
 
 ## Token lists
 

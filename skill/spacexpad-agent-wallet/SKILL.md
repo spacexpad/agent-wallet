@@ -7,7 +7,7 @@ description: Use the SpaceXpad agent wallet through its local MCP server. Pair w
 
 The wallet is a Chrome extension for the launchpad at [https://spacexpad.xyz/](https://spacexpad.xyz/). Privy holds the keys. This skill talks to the local MCP server `spacexpad-agent-wallet`, which forwards each call to the extension over `http://127.0.0.1:47321`. The reserved public document is `https://spacexpad.xyz/agent-wallet/skill.md` and it is not published. The review copy in this repo is `docs/agent-wallet/skill.md`. Do not use the launchpad's `/skill`, `/skill.md`, or `/agents` pages for this extension. There is no hosted wallet endpoint.
 
-The extension enforces the user's risk policy and kill switch. A testnet or devnet transaction signature or send waits for confirmation in the extension popup. A mainnet transaction does not ask that extra question. Message signing always asks, including on mainnet.
+The extension enforces the user's risk policy and kill switch. A successfully bound agent has sign and send completed automatically, including `spacexpad_sign_message`, `spacexpad_sign_transaction`, and `spacexpad_send_transaction`, on mainnet and on devnet or testnet. The extension does not wait for a confirmation click. An unbound request, a revoked binding, or a request while the kill switch is on is rejected and nothing is signed.
 
 ## Install and run
 
@@ -67,10 +67,10 @@ Solana test traffic is `devnet`, not `testnet`. Ethereum and Base `testnet` mean
 - `spacexpad_get_balance` — native balance plus other fungible tokens. A zero native balance is a real read. If `tokenListError` is set, say that the token list failed instead of claiming the wallet holds only the native asset.
 - `spacexpad_sign_transaction` — sign only. Return the signed transaction. Do not tell the user it was sent.
 - `spacexpad_send_transaction` — sign and submit. Report a hash only if the tool result includes one. Status `submitted` means the RPC accepted it, not that it is confirmed.
-- `spacexpad_sign_message` — Ed25519-sign arbitrary bytes with the bound Solana wallet. `chain` must be `solana`. Omit `network` for mainnet; Solana test traffic is `devnet`. `encoding` defaults to `utf8` and signs those exact bytes with no prefix. `signature` in the result is base64, which is the `signature` field for `POST https://spacexpad.xyz/api/agent/verify` together with `wallet` set to `publicKey`. `signatureBase58` is the same bytes. The popup shows the message and requires Confirm on mainnet and devnet. Do not substitute a transaction signature.
+- `spacexpad_sign_message` — Ed25519-sign arbitrary bytes with the bound Solana wallet. `chain` must be `solana`. Omit `network` for mainnet; Solana test traffic is `devnet`. `encoding` defaults to `utf8` and signs those exact bytes with no prefix. `signature` in the result is base64, which is the `signature` field for `POST https://spacexpad.xyz/api/agent/verify` together with `wallet` set to `publicKey`. `signatureBase58` is the same bytes. A successfully bound agent is signed automatically, with no confirmation click. Do not substitute a transaction signature.
 
 `kind` is `native_transfer` (`to` + human `amount`) or `serialized` (hex or base64 transaction).
 
 ## Failures
 
-Repeat the tool error. Common ones: extension not connected, bridge token mismatch, agents paused, test network not confirmed, whitelist miss, USD limit, missing price, user not signed in, RPC failure, Solana `testnet`, EVM `devnet`. Never invent a transaction hash or a balance.
+Repeat the tool error. Common ones: extension not connected, bridge token mismatch, binding not recognized, binding revoked, agents paused, whitelist miss, USD limit, missing price, user not signed in, RPC failure, Solana `testnet`, EVM `devnet`. Never invent a transaction hash or a balance.

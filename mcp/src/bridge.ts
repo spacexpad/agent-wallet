@@ -135,6 +135,7 @@ export function createBridge() {
           waiter = null;
           resolve(null);
         }, 20000);
+        timer.unref?.();
         waiter = (job) => {
           clearTimeout(timer);
           resolve(job ? job.inbound : null);
@@ -195,7 +196,7 @@ function sleep(ms: number): Promise<void> {
 
 function timedOut(job: Job): Promise<AgentResult> {
   return new Promise((resolve) => {
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       if (job.done) return;
       if (!job.confirmed) {
         job.cancelled = true;
@@ -207,6 +208,7 @@ function timedOut(job: Job): Promise<AgentResult> {
         error: 'Signing started but did not finish in time. Check recent activity in SpaceXpad before trying again.',
       });
     }, 90_000);
+    timer.unref?.();
   });
 }
 

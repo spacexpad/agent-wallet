@@ -11,6 +11,10 @@ export type Quote = {
 };
 
 export async function quoteTransaction(params: TxParams, rpcUrl: string): Promise<Quote> {
+  const message = (params as TxParams & { message?: unknown }).message;
+  if (typeof message === 'string' && message.length > 0 && !params.serialized && params.kind !== 'native_transfer') {
+    throw new Error('Message signing cannot be quoted as a transaction.');
+  }
   const cluster = resolveCluster(params.chain, params.network);
   if (params.kind === 'native_transfer') {
     if (!params.to || !params.amount) throw new Error('Native transfer needs to and amount.');
