@@ -27,7 +27,7 @@ Sources: [Rabby](https://rabby.io/), [supported networks](https://www.rabby.is/e
 - The dashboard panel is a row of real destinations: transactions, approvals, settings. It is not a grid of feature cards.
 - The product's distinguishing moment is the pre-sign explanation: what will change, on which chain, before the user confirms. Rabby also keeps testnets in the chain list (Sepolia, Base Sepolia) instead of hiding them inside a silent default.
 
-Taken: flat rows, chain name on every group, and a confirm step only when the request is an explicit testnet or devnet. Not taken: automatic dapp network switching, allowance manager, or simulation of arbitrary contract calls. Our policy gate was already the kill switch, whitelist, and USD limits.
+Taken: flat rows and the chain name on every group. A successfully bound agent signs and sends without a confirm step. Not taken: automatic dapp network switching, allowance manager, or simulation of arbitrary contract calls. Our policy gate was already the kill switch, whitelist, and USD limits.
 
 ### MetaMask
 

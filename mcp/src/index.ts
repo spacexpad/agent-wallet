@@ -7,6 +7,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { resolveCluster } from '../../shared/chains.ts';
+import { messageInbound } from '../../shared/inbound.ts';
 import type { AgentResult, ChainId } from '../../shared/types.ts';
 import { createBridge, txParams, type Bridge } from './bridge.ts';
 
@@ -248,7 +249,7 @@ async function main(): Promise<void> {
     'spacexpad_sign_transaction',
     {
       description:
-        'Ask the wallet to sign a transaction and return the signed bytes. Does not broadcast. chain is required. network defaults to mainnet. An explicit testnet or devnet waits for confirmation in the extension. The extension enforces the risk policy and kill switch. Do not claim success without a signedTransaction in the result.',
+        'Sign a transaction and return the signed bytes. Does not broadcast. chain is required. network defaults to mainnet. A successfully bound agent is signed automatically on mainnet, testnet, and devnet. Do not wait for a confirmation click. The extension still rejects an unbound or revoked binding and the kill switch. Do not claim success without a signedTransaction in the result.',
       inputSchema: txShape,
     },
     async (args) => answerTx('sign', args),
@@ -257,7 +258,7 @@ async function main(): Promise<void> {
     'spacexpad_sign_message',
     {
       description:
-        'Ask the wallet to sign an arbitrary message with the bound Solana wallet. chain must be solana. network defaults to mainnet; Solana test traffic is devnet, and solana testnet is rejected. encoding defaults to utf8 and signs those exact UTF-8 bytes with no prefix. Pass hex or base64 only when the message is not text. Every message, including mainnet, waits for confirmation in the extension. The result signature is base64, which is what POST /api/agent/verify expects in the signature field. signatureBase58 is the same bytes. Do not claim a signature that is not in the result.',
+        'Sign an arbitrary message with the bound Solana wallet. This is not a transaction. chain must be solana. network defaults to mainnet; Solana test traffic is devnet, and solana testnet is rejected. encoding defaults to utf8 and signs those exact UTF-8 bytes with no prefix. Pass hex or base64 only when the message is not text. A successfully bound agent is signed automatically. Do not wait for a confirmation click. The result signature is base64, which is what POST /api/agent/verify expects in the signature field. signatureBase58 is the same bytes. Do not return a transaction signature.',
       inputSchema: {
         bindToken: z.string(),
         chain: chainSchema,
@@ -275,17 +276,15 @@ async function main(): Promise<void> {
       if (chain !== 'solana') return toolText('Message signing currently supports Solana only. Pass chain "solana".', true);
       const invalid = networkOrError(chain, network);
       if (invalid) return toolText(invalid, true);
-      const result = await bridge.request({
-        id: randomBytes(8).toString('hex'),
-        method: 'sign_message',
-        params: {
+      const result = await bridge.request(
+        messageInbound(randomBytes(8).toString('hex'), {
           bindToken,
           chain,
           network: chosenNetwork(chain, network),
           message,
           encoding: encoding ?? 'utf8',
-        },
-      });
+        }),
+      );
       return toolText(result.ok ? result.result : result.error, !result.ok);
     },
   );
@@ -293,7 +292,7 @@ async function main(): Promise<void> {
     'spacexpad_send_transaction',
     {
       description:
-        'Ask the wallet to sign and submit a transaction. chain is required. network defaults to mainnet. An explicit testnet or devnet waits for confirmation in the extension. Returns a hash only if the RPC accepted it. The extension enforces the risk policy and kill switch. Never invent a transaction hash.',
+        'Sign and submit a transaction. chain is required. network defaults to mainnet. A successfully bound agent is signed and submitted automatically on mainnet, testnet, and devnet. Do not wait for a confirmation click. The extension still rejects an unbound or revoked binding and the kill switch. Returns a hash only if the RPC accepted it. Never invent a transaction hash.',
       inputSchema: txShape,
     },
     async (args) => answerTx('send', args),

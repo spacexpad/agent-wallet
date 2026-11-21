@@ -16,7 +16,7 @@ Draft for a later submission. Do not upload this build until the listing, privac
 
 SpaceXpad agent wallet is a keyless vault for Solana, Ethereum, Base, and BNB Chain, for the launchpad at https://spacexpad.xyz/. Setup for this extension is reserved at https://spacexpad.xyz/agent-wallet/skill.md and that file is not published. The live launchpad paths (`/`, `/skill`, `/skill.md`, `/agents`) are separate. You sign in with Gmail or an email code. Privy creates the wallets and signs. You never see a seed phrase.
 
-A paired agent on your computer can read balances, request a signature, or submit a transaction through a local MCP server on 127.0.0.1. The wallet shows mainnet balances. Agent calls use mainnet unless the request explicitly names a testnet or devnet. A test network signature waits for confirmation in the extension.
+A paired agent on your computer can read balances, request a signature, or submit a transaction through a local MCP server on 127.0.0.1. The wallet shows mainnet balances. Agent calls use mainnet unless the request explicitly names a testnet or devnet. After a binding succeeds, that agent signs and sends without a confirmation click. A revoked binding or the kill switch still blocks signing.
 
 You can leave signing uncapped, or set a single-transaction USD limit and a daily USD limit. An optional whitelist restricts destinations. A kill switch pauses every agent. The extension refuses a signature it cannot price when a limit is on, and it never reports a transaction hash it did not receive.
 

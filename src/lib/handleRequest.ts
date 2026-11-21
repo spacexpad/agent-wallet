@@ -1,9 +1,9 @@
 import { browserRpcUrl, resolveCluster } from '../../shared/chains.ts';
 import { policyText } from '../../shared/i18n.ts';
+import { classifyInbound, isBindToken } from '../../shared/inbound.ts';
 import {
   assertMessageChain,
   messageBytes,
-  messagePreview,
   publicKeyBytes,
   signatureBase58,
   signatureBase64,
@@ -29,209 +29,214 @@ export type HandlerDeps = {
   now: () => number;
 };
 
-export async function handleAgentRequest(deps: HandlerDeps, inbound: Inbound): Promise<AgentResult> {
+export async function handleAgentRequest(deps: HandlerDeps, inbound: unknown): Promise<AgentResult> {
   try {
+    const request = classifyInbound(inbound);
     const store = await deps.load();
-    const agent = store.agents.find((item) => item.token === inbound.params.bindToken);
+    const agent = store.agents.find((item) => item.token === request.params.bindToken && isBindToken(item.token));
     if (!agent) {
       return { ok: false, error: 'This binding token is not recognized. Paste it into the SpaceXpad bind screen first.' };
     }
-    if (inbound.method === 'get_addresses') return addresses(store);
-    if (inbound.method === 'sign_message') return await signMessageRequest(deps, inbound, store, agent.name);
-    const cluster = resolveCluster(inbound.params.chain, inbound.params.network);
-    const rpcUrl = browserRpcUrl(cluster.chain, cluster.network, store.settings.rpc[cluster.rpcKey] ?? '');
-    if (!rpcUrl) return { ok: false, error: `No RPC is configured for ${cluster.rpcKey}.` };
-
-    if (inbound.method === 'get_balance') {
-      const snapshot = await (deps.readBalance ?? readClusterBalance)({
-        chain: cluster.chain,
-        network: cluster.network,
-        solanaAddress: store.addresses?.solana ?? null,
-        evmAddress: store.addresses?.evm ?? null,
-        rpcUrl,
-        now: deps.now(),
-      });
-      const detail =
-        snapshot.status === 'error'
-          ? snapshot.error || 'Balance could not be loaded.'
-          : snapshot.tokenListError
-            ? `Balance read. ${snapshot.tokenListError}`
-            : 'Balance read.';
-      await deps.update((current) =>
-        withActivity(upsertSnapshot(current, snapshot), {
-          at: deps.now(),
-          agentName: agent.name,
-          method: 'balance',
-          chain: cluster.chain,
-          network: cluster.network,
-          status: snapshot.status === 'error' ? 'error' : 'ok',
-          detail,
-        }),
-      );
-      if (snapshot.status === 'error') return { ok: false, error: detail };
-      const address = cluster.addressKind === 'solana' ? store.addresses?.solana : store.addresses?.evm;
-      return {
-        ok: true,
-        result: {
-          chain: cluster.chain,
-          network: cluster.network,
-          cluster: cluster.clusterName,
-          address,
-          assets: snapshot.assets,
-          tokenListError: snapshot.tokenListError,
-        },
-      };
-    }
-
-    if (store.policy.agentsPaused) {
-      const detail = policyText('en', { code: 'paused' });
-      await deps.update((current) =>
-        withActivity(current, {
-          at: deps.now(),
-          agentName: agent.name,
-          method: inbound.method,
-          chain: cluster.chain,
-          network: cluster.network,
-          status: 'blocked',
-          detail,
-        }),
-      );
-      return { ok: false, error: detail, code: 'paused' };
-    }
-
-    if (cluster.network !== 'mainnet') {
-      const pending: PendingApproval = {
-        id: inbound.id,
-        method: inbound.method,
-        chain: cluster.chain,
-        network: cluster.network,
-        agentName: agent.name,
-        expiresAt: deps.now() + 60_000,
-      };
-      const allowed = deps.approveNonMainnet ? await deps.approveNonMainnet(pending) : false;
-      if (!allowed) {
-        const detail = 'This test network was not confirmed. Nothing was signed.';
-        await deps.update((current) =>
-          withActivity(current, {
-            at: deps.now(),
-            agentName: agent.name,
-            method: inbound.method,
-            chain: cluster.chain,
-            network: cluster.network,
-            status: 'blocked',
-            detail,
-          }),
-        );
-        return { ok: false, error: detail };
+    switch (request.method) {
+      case 'get_addresses':
+        return addresses(store);
+      case 'sign_message':
+        return await signMessageRequest(deps, request, store, agent.name);
+      case 'get_balance': {
+        const cluster = resolveCluster(request.params.chain, request.params.network);
+        const rpcUrl = browserRpcUrl(cluster.chain, cluster.network, store.settings.rpc[cluster.rpcKey] ?? '');
+        if (!rpcUrl) return { ok: false, error: `No RPC is configured for ${cluster.rpcKey}.` };
+        return await balanceRequest(deps, store, agent.name, cluster, rpcUrl);
+      }
+      case 'sign':
+      case 'send':
+        return await signOrSend(deps, request, store, agent.name);
+      default: {
+        const unreachable: never = request;
+        return { ok: false, error: `Unsupported request ${JSON.stringify(unreachable)}.` };
       }
     }
-
-    const params: TxParams = {
-      bindToken: inbound.params.bindToken,
-      chain: cluster.chain,
-      network: cluster.network,
-      kind: inbound.params.kind,
-      to: inbound.params.to,
-      amount: inbound.params.amount,
-      serialized: inbound.params.serialized,
-    };
-    const quote = await (deps.quote ?? quoteTransaction)(params, rpcUrl);
-    const decision = evaluatePolicy({
-      policy: store.policy,
-      spent: store.spend,
-      now: deps.now(),
-      transferMicroUsd: quote.transferMicroUsd,
-      destinations: quote.destinations,
-    });
-    if (!decision.allow) {
-      const detail = policyText('en', decision);
-      await deps.update((current) =>
-        withActivity(current, {
-          at: deps.now(),
-          agentName: agent.name,
-          method: inbound.method,
-          chain: cluster.chain,
-          network: cluster.network,
-          status: 'blocked',
-          detail,
-        }),
-      );
-      return { ok: false, error: detail, code: decision.code };
-    }
-
-    const proceed = await deps.confirm(inbound.id);
-    if (!proceed) return { ok: false, error: 'The agent stopped waiting before this was signed. Nothing was signed.' };
-
-    let outcome: SignOutcome;
-    try {
-      outcome = await deps.sign(params, rpcUrl, inbound.method);
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : 'Signing failed.';
-      await deps.update((current) =>
-        withActivity(current, {
-          at: deps.now(),
-          agentName: agent.name,
-          method: inbound.method,
-          chain: cluster.chain,
-          network: cluster.network,
-          status: 'error',
-          detail,
-        }),
-      );
-      return { ok: false, error: detail };
-    }
-
-    if (inbound.method === 'send' && !outcome.hash) {
-      const detail = 'The transaction was not submitted. No hash was returned.';
-      await deps.update((current) =>
-        withActivity(current, {
-          at: deps.now(),
-          agentName: agent.name,
-          method: 'send',
-          chain: cluster.chain,
-          network: cluster.network,
-          status: 'error',
-          detail,
-        }),
-      );
-      return { ok: false, error: detail };
-    }
-
-    await deps.update((current) => {
-      let next = current;
-      if (inbound.method === 'send' && quote.transferMicroUsd !== null) {
-        const date = utcDate(deps.now());
-        const previous = current.spend.date === date ? BigInt(current.spend.microUsd || '0') : 0n;
-        next = { ...current, spend: { date, microUsd: (previous + quote.transferMicroUsd).toString() } };
-      }
-      return withActivity(next, {
-        at: deps.now(),
-        agentName: agent.name,
-        method: inbound.method,
-        chain: cluster.chain,
-        network: cluster.network,
-        status: 'ok',
-        detail: inbound.method === 'send' ? 'Submitted' : 'Signed, not submitted',
-        hash: outcome.hash,
-      });
-    });
-
-    void refreshQuietly(deps, params, rpcUrl);
-
-    return {
-      ok: true,
-      result: {
-        chain: cluster.chain,
-        network: cluster.network,
-        cluster: cluster.clusterName,
-        status: inbound.method === 'send' ? 'submitted' : 'signed',
-        hash: outcome.hash ?? null,
-        signedTransaction: outcome.signedTransaction ?? null,
-      },
-    };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : 'Request failed.' };
   }
+}
+
+async function balanceRequest(
+  deps: HandlerDeps,
+  store: Store,
+  agentName: string,
+  cluster: ReturnType<typeof resolveCluster>,
+  rpcUrl: string,
+): Promise<AgentResult> {
+  const snapshot = await (deps.readBalance ?? readClusterBalance)({
+    chain: cluster.chain,
+    network: cluster.network,
+    solanaAddress: store.addresses?.solana ?? null,
+    evmAddress: store.addresses?.evm ?? null,
+    rpcUrl,
+    now: deps.now(),
+  });
+  const detail =
+    snapshot.status === 'error'
+      ? snapshot.error || 'Balance could not be loaded.'
+      : snapshot.tokenListError
+        ? `Balance read. ${snapshot.tokenListError}`
+        : 'Balance read.';
+  await deps.update((current) =>
+    withActivity(upsertSnapshot(current, snapshot), {
+      at: deps.now(),
+      agentName,
+      method: 'balance',
+      chain: cluster.chain,
+      network: cluster.network,
+      status: snapshot.status === 'error' ? 'error' : 'ok',
+      detail,
+    }),
+  );
+  if (snapshot.status === 'error') return { ok: false, error: detail };
+  const address = cluster.addressKind === 'solana' ? store.addresses?.solana : store.addresses?.evm;
+  return {
+    ok: true,
+    result: {
+      chain: cluster.chain,
+      network: cluster.network,
+      cluster: cluster.clusterName,
+      address,
+      assets: snapshot.assets,
+      tokenListError: snapshot.tokenListError,
+    },
+  };
+}
+
+async function signOrSend(
+  deps: HandlerDeps,
+  inbound: Extract<Inbound, { method: 'sign' | 'send' }>,
+  store: Store,
+  agentName: string,
+): Promise<AgentResult> {
+  const cluster = resolveCluster(inbound.params.chain, inbound.params.network);
+  const rpcUrl = browserRpcUrl(cluster.chain, cluster.network, store.settings.rpc[cluster.rpcKey] ?? '');
+  if (!rpcUrl) return { ok: false, error: `No RPC is configured for ${cluster.rpcKey}.` };
+
+  if (store.policy.agentsPaused) {
+    const detail = policyText('en', { code: 'paused' });
+    await deps.update((current) =>
+      withActivity(current, {
+        at: deps.now(),
+        agentName,
+        method: inbound.method,
+        chain: cluster.chain,
+        network: cluster.network,
+        status: 'blocked',
+        detail,
+      }),
+    );
+    return { ok: false, error: detail, code: 'paused' };
+  }
+
+  const params: TxParams = {
+    bindToken: inbound.params.bindToken,
+    chain: cluster.chain,
+    network: cluster.network,
+    kind: inbound.params.kind,
+    to: inbound.params.to,
+    amount: inbound.params.amount,
+    serialized: inbound.params.serialized,
+  };
+  const quote = await (deps.quote ?? quoteTransaction)(params, rpcUrl);
+  const decision = evaluatePolicy({
+    policy: store.policy,
+    spent: store.spend,
+    now: deps.now(),
+    transferMicroUsd: quote.transferMicroUsd,
+    destinations: quote.destinations,
+  });
+  if (!decision.allow) {
+    const detail = policyText('en', decision);
+    await deps.update((current) =>
+      withActivity(current, {
+        at: deps.now(),
+        agentName,
+        method: inbound.method,
+        chain: cluster.chain,
+        network: cluster.network,
+        status: 'blocked',
+        detail,
+      }),
+    );
+    return { ok: false, error: detail, code: decision.code };
+  }
+
+  const stopped = await bridgeStillWaiting(deps, inbound.id);
+  if (stopped) return stopped;
+
+  let outcome: SignOutcome;
+  try {
+    outcome = await deps.sign(params, rpcUrl, inbound.method);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : 'Signing failed.';
+    await deps.update((current) =>
+      withActivity(current, {
+        at: deps.now(),
+        agentName,
+        method: inbound.method,
+        chain: cluster.chain,
+        network: cluster.network,
+        status: 'error',
+        detail,
+      }),
+    );
+    return { ok: false, error: detail };
+  }
+
+  if (inbound.method === 'send' && !outcome.hash) {
+    const detail = 'The transaction was not submitted. No hash was returned.';
+    await deps.update((current) =>
+      withActivity(current, {
+        at: deps.now(),
+        agentName,
+        method: 'send',
+        chain: cluster.chain,
+        network: cluster.network,
+        status: 'error',
+        detail,
+      }),
+    );
+    return { ok: false, error: detail };
+  }
+
+  await deps.update((current) => {
+    let next = current;
+    if (inbound.method === 'send' && quote.transferMicroUsd !== null) {
+      const date = utcDate(deps.now());
+      const previous = current.spend.date === date ? BigInt(current.spend.microUsd || '0') : 0n;
+      next = { ...current, spend: { date, microUsd: (previous + quote.transferMicroUsd).toString() } };
+    }
+    return withActivity(next, {
+      at: deps.now(),
+      agentName,
+      method: inbound.method,
+      chain: cluster.chain,
+      network: cluster.network,
+      status: 'ok',
+      detail: inbound.method === 'send' ? 'Submitted' : 'Signed, not submitted',
+      hash: outcome.hash,
+    });
+  });
+
+  void refreshQuietly(deps, params, rpcUrl);
+
+  return {
+    ok: true,
+    result: {
+      chain: cluster.chain,
+      network: cluster.network,
+      cluster: cluster.clusterName,
+      status: inbound.method === 'send' ? 'submitted' : 'signed',
+      hash: outcome.hash ?? null,
+      signedTransaction: outcome.signedTransaction ?? null,
+    },
+  };
 }
 
 async function signMessageRequest(
@@ -244,7 +249,6 @@ async function signMessageRequest(
   const cluster = resolveCluster('solana', inbound.params.network);
   const encoding = inbound.params.encoding ?? 'utf8';
   const bytes = messageBytes(inbound.params.message, encoding);
-  const preview = messagePreview(bytes, inbound.params.message, encoding);
   if (store.policy.agentsPaused) {
     const detail = policyText('en', { code: 'paused' });
     await recordMessage(deps, agentName, cluster.network, 'blocked', detail);
@@ -252,21 +256,8 @@ async function signMessageRequest(
   }
   const address = store.addresses?.solana;
   if (!address) return { ok: false, error: 'Wallets are not ready yet.' };
-  const pending: PendingApproval = {
-    id: inbound.id,
-    method: 'sign_message',
-    chain: cluster.chain,
-    network: cluster.network,
-    agentName,
-    expiresAt: deps.now() + 60_000,
-    message: preview,
-  };
-  const allowed = deps.approveNonMainnet ? await deps.approveNonMainnet(pending) : false;
-  if (!allowed) {
-    const detail = 'This message was not confirmed. Nothing was signed.';
-    await recordMessage(deps, agentName, cluster.network, 'blocked', detail);
-    return { ok: false, error: detail };
-  }
+  const stopped = await bridgeStillWaiting(deps, inbound.id);
+  if (stopped) return stopped;
   if (!deps.signMessage) return { ok: false, error: 'Message signing is not available.' };
   let signed: { signature: Uint8Array; publicKey: string };
   try {
@@ -295,6 +286,13 @@ async function signMessageRequest(
       messageEncoding: encoding,
     },
   };
+}
+
+// Marks the local bridge job as started. It does not open a confirm popup.
+async function bridgeStillWaiting(deps: HandlerDeps, id: string): Promise<AgentResult | null> {
+  const proceed = await deps.confirm(id);
+  if (proceed) return null;
+  return { ok: false, error: 'The agent stopped waiting before this was signed. Nothing was signed.' };
 }
 
 async function recordMessage(
