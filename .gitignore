@@ -5,3 +5,4 @@ config.json
 *.pem
 .DS_Store
 *.log
+.wrangler

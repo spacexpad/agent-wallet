@@ -68,6 +68,7 @@ export type BoundAgent = {
   name: string;
   token: string;
   boundAt: number;
+  offlineGranted?: boolean;
 };
 
 export type Activity = {
@@ -90,6 +91,9 @@ export type Settings = {
   privyClientId: string;
   bridgeUrl: string;
   bridgeToken: string;
+  authUrl: string;
+  privyKeyQuorumId: string;
+  ownerKey: string;
   rpc: RpcMap;
   configError: string | null;
 };

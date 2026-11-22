@@ -4,6 +4,7 @@ import { hasAppId, walletReady } from '../../shared/store.ts';
 import { messageSignCopy, t, testnetConfirmCopy } from '../../shared/i18n.ts';
 import type { Lang, Store } from '../../shared/types.ts';
 import { copyText } from '../lib/copyText.ts';
+import { authPost, ensureOwnerKey } from '../lib/offlineClient.ts';
 import { completeEmailLogin, endVaultSession, notifyAuthChanged } from '../lib/sessionSync.ts';
 import { bridgePost, ensureBridgeToken, registerStoredPair, updateStore } from '../lib/storage.ts';
 import { PrivyGate, useVault } from '../privy/useVault.tsx';
@@ -11,6 +12,7 @@ import { AssetHome } from '../ui/AssetHome.tsx';
 import { brandIcon } from '../ui/brand.ts';
 import { Banner, BindScreen, CopyFallback } from '../ui/BindScreen.tsx';
 import { LoginScreen, type OtpPhase } from '../ui/LoginScreen.tsx';
+import { OfflineGrant } from '../ui/OfflineGrant.tsx';
 import { SettingsPanel } from '../ui/SettingsPanel.tsx';
 import { useExtensionStore } from './useStore.ts';
 import { useMainnetBalances } from './useMainnet.ts';
@@ -389,6 +391,10 @@ function usePairing(store: Store) {
     if (settings.bridgeToken) {
       try {
         await registerStoredPair(settings, { code, expiresAt });
+        if (settings.authUrl) {
+          const ownerKey = await ensureOwnerKey();
+          await authPost(settings, '/v1/pair/register', { pairCode: code, expiresAt, ownerKey });
+        }
         await updateStore((current) =>
           current.pair?.code === code ? { ...current, pair: { ...current.pair, registered: true } } : current,
         );
@@ -415,10 +421,13 @@ function usePairing(store: Store) {
     }
     const settings = await ensureBridgeToken(store.settings);
     try {
-      const json = await bridgePost(settings, '/v1/pair/redeem', {
-        pairCode: store.pair.code,
-        bindToken: value,
-      });
+      const ownerKey = settings.authUrl ? await ensureOwnerKey() : '';
+      const json = settings.authUrl
+        ? await authPost(settings, '/v1/pair/redeem', { pairCode: store.pair.code, bindToken: value, ownerKey })
+        : await bridgePost(settings, '/v1/pair/redeem', {
+            pairCode: store.pair.code,
+            bindToken: value,
+          });
       await updateStore((current) => ({
         ...current,
         pair: null,
@@ -451,6 +460,7 @@ function AgentPanel({ store }: { store: Store }) {
       {store.agents.map((agent) => (
         <div className="row" key={agent.id}>
           <span>{agent.name}</span>
+          <OfflineGrant store={store} token={agent.token} />
           <button
             type="button"
             className="quiet-button"
@@ -508,6 +518,13 @@ async function unbind(store: Store, token: string): Promise<void> {
     await bridgePost(store.settings, '/v1/pair/unbind', { bindToken: token });
   } catch {
     // Local removal still stops this extension from signing.
+  }
+  if (store.settings.authUrl && store.settings.ownerKey) {
+    try {
+      await authPost(store.settings, '/v1/revoke', { ownerKey: store.settings.ownerKey, bindToken: token });
+    } catch {
+      // The local binding is still removed. Retry the authorization service from the extension while it is open.
+    }
   }
   await updateStore((current) => ({ ...current, agents: current.agents.filter((agent) => agent.token !== token) }));
 }

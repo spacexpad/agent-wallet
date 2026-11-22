@@ -7,7 +7,7 @@ description: Use the SpaceXpad agent wallet through its local MCP server. Pair w
 
 This document is the setup for the SpaceXpad agent wallet Chrome extension. It is separate from the launchpad skill at `https://spacexpad.xyz/skill.md`.
 
-Privy holds the keys. There is no seed phrase in the extension and no hosted wallet endpoint. A local MCP server on this computer forwards each call to the extension. The extension enforces the user's risk policy and kill switch.
+Privy holds the keys. There is no seed phrase, and this service never receives one. Install the MCP server on the agent device first. Use the user's computer only when that agent has no runtime of its own. After the user grants offline signing in the extension, sign and send go to the authorization Worker even if Chrome is closed. The local extension bridge remains the fallback when that grant is not in place and the extension is open.
 
 Intended public URL, not published yet: `https://spacexpad.xyz/agent-wallet/skill.md`
 
@@ -18,8 +18,10 @@ You need Node.js 22 or newer and a checkout of the `spacexpad-agent-wallet` repo
 ```bash
 npm install
 npm run build
-node --experimental-strip-types mcp/src/index.ts
+SPACEXPAD_AUTH_URL=https://<authorization-worker> node --experimental-strip-types mcp/src/index.ts
 ```
+
+Set `SPACEXPAD_AUTH_URL` to the authorization Worker. Omit it only when this MCP and the extension are on the same computer and offline signing is not granted. Do not put a Privy app secret, authorization private key, or bridge token in this command, in chat, or in the extension.
 
 `npm run mcp` starts the same process. Load the unpacked extension from the `dist` folder. The extension id pinned by the manifest key is `kgjgdglopjkfahcipgkpnnkenjnoineo`.
 
@@ -73,7 +75,7 @@ Omit `network` to use mainnet. The wallet view is mainnet as well. Pass `testnet
 
 Solana test traffic is `devnet`, not `testnet`. Ethereum and Base `testnet` means Sepolia. BNB Chain `testnet` means BSC testnet. `devnet` is valid only for Solana.
 
-A successfully bound agent has `spacexpad_sign_message`, `spacexpad_sign_transaction`, and `spacexpad_send_transaction` completed automatically. The extension does not show a confirm popup and does not wait for a confirmation click, on mainnet or on devnet or testnet. An unbound request, a revoked binding, or a request while the kill switch is on is rejected and nothing is signed. The risk policy still applies to transactions.
+A successfully bound agent has `spacexpad_sign_message`, `spacexpad_sign_transaction`, and `spacexpad_send_transaction` completed automatically when that action is authorized. Chrome can be closed after the user has granted offline signing in the extension. An unbound request, a revoked binding, or a request while the kill switch is on is rejected and nothing is signed, including after Chrome closes. Offline sends also stay inside the authorization service limits and whitelist. A request over the limit, or to an address that is not on the whitelist, is not signed and is not queued. The reply is that the request needs confirmation and the wallet is offline for it.
 
 ## Tools
 
@@ -93,6 +95,16 @@ A successfully bound agent has `spacexpad_sign_message`, `spacexpad_sign_transac
 
 `kind` is `native_transfer` (`to` plus a human `amount`) or `serialized` (a hex or base64 transaction).
 
+## Offline signing
+
+1. On the agent device, run this MCP with `SPACEXPAD_AUTH_URL` set to the authorization Worker.
+2. The user copies a prompt from the extension. The extension registers that `PAIR_CODE` with the Worker. The code lasts 30 minutes and is one-time.
+3. Call `spacexpad_pair`. Show the `spx_bind_` token and wait until the user pastes it into the extension. Do not ask them to paste a bridge token into Settings.
+4. The user taps **Allow offline signing** in the extension. That is an explicit grant. It adds this service's Privy key quorum as a signer on the existing embedded wallet. Privy keeps the keys.
+5. After that grant, sign and send can complete while Chrome is closed. Revoke and pause in the extension take effect immediately on the Worker.
+
+The Worker calls Privy's wallet RPC (`POST /v1/wallets/{wallet_id}/rpc`) after the user has added this service's key quorum with `addSigners`. The app secret and the P-256 authorization private key are Worker secrets named `PRIVY_APP_SECRET` and `PRIVY_AUTHORIZATION_PRIVATE_KEY`. `PRIVY_APP_ID` and `PRIVY_KEY_QUORUM_ID` are plain Worker variables. None of those private values belong in the extension, the MCP command, or this document. Offline Solana sends use a serialized unsigned transaction plus `to` and `amount`, so the limit and whitelist can be checked before Privy is called. This Worker is in `worker/` and was not deployed by the repository change that added it.
+
 ## Failures
 
-Repeat the tool error. Common ones: extension not connected, bridge token rejected, binding not recognized, binding revoked, agents paused, whitelist miss, USD limit, missing price, user not signed in, RPC failure, Solana `testnet`, EVM `devnet`. Never invent a transaction hash or a balance.
+Repeat the tool error. Common ones: extension not connected, authorization service unreachable, binding not recognized, binding revoked, agents paused, needs confirmation while the wallet is offline, Solana `testnet`, EVM `devnet`. Never invent a transaction hash, a signature, or a balance.

@@ -9,6 +9,8 @@ type FileConfig = {
   privyClientId?: string;
   bridgeUrl?: string;
   bridgeToken?: string;
+  authUrl?: string;
+  privyKeyQuorumId?: string;
   rpc?: Record<string, string>;
 };
 
@@ -34,7 +36,16 @@ export async function hydrateConfig(): Promise<void> {
     configError = error instanceof Error ? error.message : 'Could not read config.json.';
   }
   await updateStore((store) => {
-    if (store.settings.hydrated) return store;
+    if (store.settings.hydrated) {
+      return {
+        ...store,
+        settings: {
+          ...store.settings,
+          authUrl: store.settings.authUrl || file?.authUrl?.trim() || '',
+          privyKeyQuorumId: store.settings.privyKeyQuorumId || file?.privyKeyQuorumId?.trim() || '',
+        },
+      };
+    }
     const settings: Settings = {
       ...store.settings,
       hydrated: true,
@@ -42,6 +53,8 @@ export async function hydrateConfig(): Promise<void> {
       privyClientId: cleanId(file?.privyClientId),
       bridgeUrl: file?.bridgeUrl?.trim() || store.settings.bridgeUrl,
       bridgeToken: file?.bridgeToken?.trim() || store.settings.bridgeToken,
+      authUrl: file?.authUrl?.trim() || store.settings.authUrl,
+      privyKeyQuorumId: file?.privyKeyQuorumId?.trim() || store.settings.privyKeyQuorumId,
       rpc: { ...DEFAULT_RPCS, ...file?.rpc },
       configError,
     };

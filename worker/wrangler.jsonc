@@ -1,0 +1,29 @@
+{
+  "name": "spacexpad-agent-wallet-auth",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-21",
+  "observability": {
+    "enabled": true,
+    "traces": {
+      "enabled": true
+    }
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "LEDGER",
+        "class_name": "AuthorizationLedger"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["AuthorizationLedger"]
+    }
+  ],
+  "vars": {
+    "PRIVY_APP_ID": "",
+    "PRIVY_KEY_QUORUM_ID": ""
+  }
+}

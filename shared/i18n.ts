@@ -111,6 +111,10 @@ const EN = {
   methodSign: 'Sign',
   methodSend: 'Send',
   methodSignMessage: 'Sign message',
+  offlineGrant: 'Allow offline signing',
+  offlineGranted: 'Offline signing is on',
+  offlineNeedsQuorum: 'Offline signing needs an authorization service URL and a key quorum id in config. Do not put a Privy secret in the extension.',
+  offlineNeedsWalletId: 'This Solana wallet has no Privy wallet id yet, so offline signing cannot be granted.',
 } as const;
 
 export type CopyKey = keyof typeof EN;
@@ -225,6 +229,10 @@ const ZH_CN: Record<CopyKey, string> = {
   methodSign: '签名',
   methodSend: '发送',
   methodSignMessage: '签名消息',
+  offlineGrant: '允许离线签名',
+  offlineGranted: '已允许离线签名',
+  offlineNeedsQuorum: '离线签名需要在配置里填写授权服务地址和 key quorum id。不要把 Privy 密钥放进扩展。',
+  offlineNeedsWalletId: '这个 Solana 钱包还没有 Privy wallet id，暂时不能授权离线签名。',
 };
 
 const ZH_TW: Record<CopyKey, string> = {
@@ -337,6 +345,10 @@ const ZH_TW: Record<CopyKey, string> = {
   methodSign: '簽名',
   methodSend: '送出',
   methodSignMessage: '簽名訊息',
+  offlineGrant: '允許離線簽名',
+  offlineGranted: '已允許離線簽名',
+  offlineNeedsQuorum: '離線簽名需要在設定裡填授權服務網址和 key quorum id。不要把 Privy 密鑰放進擴充功能。',
+  offlineNeedsWalletId: '這個 Solana 錢包還沒有 Privy wallet id，暫時不能授權離線簽名。',
 };
 
 const TABLES: Record<Lang, Record<CopyKey, string>> = {
