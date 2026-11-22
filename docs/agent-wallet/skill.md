@@ -75,7 +75,7 @@ Omit `network` to use mainnet. The wallet view is mainnet as well. Pass `testnet
 
 Solana test traffic is `devnet`, not `testnet`. Ethereum and Base `testnet` means Sepolia. BNB Chain `testnet` means BSC testnet. `devnet` is valid only for Solana.
 
-A successfully bound agent has `spacexpad_sign_message`, `spacexpad_sign_transaction`, and `spacexpad_send_transaction` completed automatically when that action is authorized. Chrome can be closed after the user has granted offline signing in the extension. An unbound request, a revoked binding, or a request while the kill switch is on is rejected and nothing is signed, including after Chrome closes. Offline sends also stay inside the authorization service limits and whitelist. A request over the limit, or to an address that is not on the whitelist, is not signed and is not queued. The reply is that the request needs confirmation and the wallet is offline for it.
+A successfully bound agent has `spacexpad_sign_message`, `spacexpad_sign_transaction`, and `spacexpad_send_transaction` completed automatically. Offline signing is on by default once the user is logged in and an agent is bound. The extension grants the Privy signer without a separate opt-in click. The user can turn offline signing off in the extension. Chrome can stay closed after that grant. An unbound request, a revoked binding, or a request while the kill switch is on is rejected and nothing is signed, including after Chrome closes. The default risk policy is full access: an empty whitelist does not block sign or send, and there is no default native amount cap. If the user turns on a whitelist or turns off full access, an offline request outside that policy is not signed and is not queued.
 
 ## Tools
 
@@ -100,10 +100,10 @@ A successfully bound agent has `spacexpad_sign_message`, `spacexpad_sign_transac
 1. On the agent device, run this MCP with `SPACEXPAD_AUTH_URL` set to the authorization Worker.
 2. The user copies a prompt from the extension. The extension registers that `PAIR_CODE` with the Worker. The code lasts 30 minutes and is one-time.
 3. Call `spacexpad_pair`. Show the `spx_bind_` token and wait until the user pastes it into the extension. Do not ask them to paste a bridge token into Settings.
-4. The user taps **Allow offline signing** in the extension. That is an explicit grant. It adds this service's Privy key quorum as a signer on the existing embedded wallet. Privy keeps the keys.
-5. After that grant, sign and send can complete while Chrome is closed. Revoke and pause in the extension take effect immediately on the Worker.
+4. After login and bind, the extension adds this service's Privy key quorum as a signer. That grant is the default. The user can turn it off. Privy keeps the keys.
+5. Sign and send can then complete while Chrome is closed. Revoke and pause in the extension take effect immediately on the Worker. Full access is the default. A whitelist or a tighter policy applies only after the user sets one.
 
-The Worker calls Privy's wallet RPC (`POST /v1/wallets/{wallet_id}/rpc`) after the user has added this service's key quorum with `addSigners`. The app secret and the P-256 authorization private key are Worker secrets named `PRIVY_APP_SECRET` and `PRIVY_AUTHORIZATION_PRIVATE_KEY`. `PRIVY_APP_ID` and `PRIVY_KEY_QUORUM_ID` are plain Worker variables. None of those private values belong in the extension, the MCP command, or this document. Offline Solana sends use a serialized unsigned transaction plus `to` and `amount`, so the limit and whitelist can be checked before Privy is called. This Worker is in `worker/` and was not deployed by the repository change that added it.
+The built extension config already contains the authorization service URL `https://spacexpad-agent-wallet-auth.timmy2048.workers.dev` and the key quorum id. Do not ask the user to type those. Set `SPACEXPAD_AUTH_URL` to that same URL when the MCP runs on the agent device. The Worker calls Privy's wallet RPC (`POST /v1/wallets/{wallet_id}/rpc`). The app secret and the P-256 authorization private key are Worker secrets named `PRIVY_APP_SECRET` and `PRIVY_AUTHORIZATION_PRIVATE_KEY`. They are not in the extension or in this document. `PRIVY_APP_ID` and `PRIVY_KEY_QUORUM_ID` are plain Worker variables. Offline Solana sends still use a serialized unsigned transaction. This Worker lives in `worker/` and is deployed separately from this document.
 
 ## Failures
 

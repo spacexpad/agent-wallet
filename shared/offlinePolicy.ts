@@ -5,13 +5,6 @@ import type { ChainId } from './types.ts';
 export const NEEDS_CONFIRMATION =
   'This request needs confirmation in the wallet, and the wallet is offline for this request.';
 
-export const DEFAULT_OFFLINE_MAX: Record<ChainId, string> = {
-  solana: '0.05',
-  ethereum: '0.01',
-  base: '0.01',
-  bnb: '0.02',
-};
-
 export type OfflineKind = 'sign_message' | 'sign' | 'send';
 
 export type OfflineRequest = {
@@ -31,7 +24,12 @@ export type OfflineBinding = {
   revoked: boolean;
   paused: boolean;
   whitelist: string[];
-  maxNative: Record<string, string>;
+  /** Missing means full access, matching the extension default. */
+  fullAccess?: boolean;
+  /** Missing means the whitelist is off. An empty list does not block. */
+  whitelistEnabled?: boolean;
+  /** Native-unit caps. Applied only when full access is off and a cap is set. */
+  maxNative?: Record<string, string> | null;
 };
 
 export function decideOffline(binding: OfflineBinding, request: OfflineRequest): { ok: true; network: string } | { ok: false; error: string; code: string } {
@@ -60,16 +58,17 @@ export function decideOffline(binding: OfflineBinding, request: OfflineRequest):
     if (!request.to || !request.amount) {
       return { ok: false, error: 'Native transfer needs to and amount.', code: 'invalid' };
     }
-    if (!listed(binding.whitelist, request.to)) return needsConfirmation('whitelist');
-    if (overCap(binding, request.chain, request.amount)) return needsConfirmation('limit');
-    return { ok: true, network };
-  }
-  if (!request.serialized) {
+  } else if (!request.serialized) {
     return { ok: false, error: 'Serialized transaction is missing.', code: 'invalid' };
   }
-  if (!request.to || !listed(binding.whitelist, request.to)) return needsConfirmation('whitelist');
-  if (request.amount && overCap(binding, request.chain, request.amount)) return needsConfirmation('limit');
-  if (!request.amount) return needsConfirmation('unpriced');
+  if (binding.whitelistEnabled === true) {
+    if (binding.whitelist.length === 0) return needsConfirmation('whitelist');
+    if (!request.to || !listed(binding.whitelist, request.to)) return needsConfirmation('whitelist');
+  }
+  if (binding.fullAccess === false) {
+    const cap = binding.maxNative?.[request.chain];
+    if (!cap || !request.amount || overCap(binding, request.chain, request.amount)) return needsConfirmation('limit');
+  }
   return { ok: true, network };
 }
 
@@ -89,7 +88,8 @@ function same(left: string, right: string): boolean {
 }
 
 function overCap(binding: OfflineBinding, chain: ChainId, amount: string): boolean {
-  const cap = binding.maxNative[chain] ?? DEFAULT_OFFLINE_MAX[chain];
+  const cap = binding.maxNative?.[chain];
+  if (!cap) return true;
   const decimals = chain === 'solana' ? 9 : 18;
   try {
     return parseDecimal(amount, decimals) > parseDecimal(cap, decimals);

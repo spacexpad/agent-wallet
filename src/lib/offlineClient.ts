@@ -1,4 +1,4 @@
-import type { Settings } from '../../shared/types.ts';
+import type { Settings, Store } from '../../shared/types.ts';
 import { loadStore, updateStore } from './storage.ts';
 
 export async function ensureOwnerKey(): Promise<string> {
@@ -11,6 +11,16 @@ export async function ensureOwnerKey(): Promise<string> {
     settings: { ...current.settings, ownerKey: current.settings.ownerKey || ownerKey },
   }));
   return next.settings.ownerKey;
+}
+
+export function offlinePolicyBody(store: Store, ownerKey: string, paused = store.policy.agentsPaused): Record<string, unknown> {
+  return {
+    ownerKey,
+    paused,
+    whitelist: store.policy.whitelist.map((entry) => entry.address),
+    whitelistEnabled: store.policy.whitelistEnabled,
+    fullAccess: store.policy.fullAccess,
+  };
 }
 
 export async function authPost(settings: Settings, path: string, body: unknown): Promise<Record<string, unknown>> {

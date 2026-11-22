@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { chainName, clusterLabel, t } from '../../shared/i18n.ts';
 import { isAllowlistAddress } from '../../shared/money.ts';
 import { isDisplayName } from '../../shared/store.ts';
-import type { Store } from '../../shared/types.ts';
-import { authPost } from '../lib/offlineClient.ts';
+import type { RiskPolicy, Store } from '../../shared/types.ts';
+import { authPost, offlinePolicyBody } from '../lib/offlineClient.ts';
 import { updateStore } from '../lib/storage.ts';
 import { LanguageChoices } from './BindScreen.tsx';
 import { SettingsGlyph, type SettingsIconName } from './icons.tsx';
@@ -42,6 +42,16 @@ export function SettingsPanel({
 
   const chooseView = (assetView: Store['assetView']) => {
     void updateStore((current) => ({ ...current, assetView }));
+  };
+
+  const savePolicy = async (policy: RiskPolicy) => {
+    await updateStore((current) => ({ ...current, policy }));
+    if (!store.settings.authUrl || !store.settings.ownerKey) return;
+    try {
+      await authPost(store.settings, '/v1/policy', offlinePolicyBody({ ...store, policy }, store.settings.ownerKey, policy.agentsPaused));
+    } catch {
+      // The local policy still applies while this browser is open.
+    }
   };
 
   const saveAccount = () => {
@@ -139,7 +149,7 @@ export function SettingsPanel({
               type="button"
               aria-pressed={store.policy.fullAccess}
               onClick={() => {
-                void updateStore((current) => ({ ...current, policy: { ...current.policy, fullAccess: true } }));
+                void savePolicy({ ...store.policy, fullAccess: true });
               }}
             >
               {t(lang, 'fullAccess')}
@@ -148,7 +158,7 @@ export function SettingsPanel({
               type="button"
               aria-pressed={!store.policy.fullAccess}
               onClick={() => {
-                void updateStore((current) => ({ ...current, policy: { ...current.policy, fullAccess: false } }));
+                void savePolicy({ ...store.policy, fullAccess: false });
               }}
             >
               {t(lang, 'useLimits')}
@@ -169,14 +179,11 @@ export function SettingsPanel({
                 type="button"
                 className="secondary"
                 onClick={() => {
-                  void updateStore((current) => ({
-                    ...current,
-                    policy: {
-                      ...current.policy,
-                      singleTxUsd: single.trim() ? Number(single) : null,
-                      dailyUsd: daily.trim() ? Number(daily) : null,
-                    },
-                  }));
+                  void savePolicy({
+                    ...store.policy,
+                    singleTxUsd: single.trim() ? Number(single) : null,
+                    dailyUsd: daily.trim() ? Number(daily) : null,
+                  });
                 }}
               >
                 {t(lang, 'save')}
@@ -187,23 +194,7 @@ export function SettingsPanel({
             type="button"
             className="secondary"
             onClick={() => {
-              const paused = !store.policy.agentsPaused;
-              void (async () => {
-                await updateStore((current) => ({
-                  ...current,
-                  policy: { ...current.policy, agentsPaused: paused },
-                }));
-                if (!store.settings.authUrl || !store.settings.ownerKey) return;
-                try {
-                  await authPost(store.settings, '/v1/policy', {
-                    ownerKey: store.settings.ownerKey,
-                    paused,
-                    whitelist: store.policy.whitelist.map((entry) => entry.address),
-                  });
-                } catch {
-                  // The local kill switch still applies while this browser is open.
-                }
-              })();
+              void savePolicy({ ...store.policy, agentsPaused: !store.policy.agentsPaused });
             }}
           >
             {store.policy.agentsPaused ? t(lang, 'resume') : t(lang, 'pause')}
@@ -217,10 +208,7 @@ export function SettingsPanel({
               type="button"
               aria-pressed={store.policy.whitelistEnabled}
               onClick={() => {
-                void updateStore((current) => ({
-                  ...current,
-                  policy: { ...current.policy, whitelistEnabled: !current.policy.whitelistEnabled },
-                }));
+                void savePolicy({ ...store.policy, whitelistEnabled: !store.policy.whitelistEnabled });
               }}
             >
               {t(lang, 'whitelist')}
@@ -238,13 +226,10 @@ export function SettingsPanel({
                 type="button"
                 className="quiet-button"
                 onClick={() => {
-                  void updateStore((current) => ({
-                    ...current,
-                    policy: {
-                      ...current.policy,
-                      whitelist: current.policy.whitelist.filter((item) => item.address !== entry.address),
-                    },
-                  }));
+                  void savePolicy({
+                    ...store.policy,
+                    whitelist: store.policy.whitelist.filter((item) => item.address !== entry.address),
+                  });
                 }}
               >
                 {t(lang, 'remove')}
@@ -268,13 +253,10 @@ export function SettingsPanel({
                 return;
               }
               setError(null);
-              void updateStore((current) => ({
-                ...current,
-                policy: {
-                  ...current.policy,
-                  whitelist: [...current.policy.whitelist, { address: address.trim(), label: label.trim() }],
-                },
-              }));
+              void savePolicy({
+                ...store.policy,
+                whitelist: [...store.policy.whitelist, { address: address.trim(), label: label.trim() }],
+              });
               setAddress('');
               setLabel('');
             }}

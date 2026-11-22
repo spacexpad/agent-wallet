@@ -3,6 +3,24 @@ import type { Settings, Store } from './types.ts';
 import { DEFAULT_POLICY } from './types.ts';
 
 export const BRIDGE_URL = 'http://127.0.0.1:47321';
+export const DEFAULT_AUTH_URL = 'https://spacexpad-agent-wallet-auth.timmy2048.workers.dev';
+export const DEFAULT_KEY_QUORUM_ID = 'nzzqzkcm5vuy8ed6x3wlibww';
+
+export function offlineSigningEnabled(value: boolean | null | undefined): boolean {
+  return value !== false;
+}
+
+export function shouldAutoGrantOffline(input: {
+  offlineSigning: boolean | null | undefined;
+  authenticated: boolean;
+  bound: boolean;
+  alreadyGranted: boolean;
+  hasSolanaAddress: boolean;
+  hasWalletId: boolean;
+}): boolean {
+  if (!offlineSigningEnabled(input.offlineSigning)) return false;
+  return input.authenticated && input.bound && !input.alreadyGranted && input.hasSolanaAddress && input.hasWalletId;
+}
 
 export function defaultSettings(): Settings {
   return {
@@ -11,8 +29,8 @@ export function defaultSettings(): Settings {
     privyClientId: '',
     bridgeUrl: BRIDGE_URL,
     bridgeToken: '',
-    authUrl: '',
-    privyKeyQuorumId: '',
+    authUrl: DEFAULT_AUTH_URL,
+    privyKeyQuorumId: DEFAULT_KEY_QUORUM_ID,
     ownerKey: '',
     rpc: { ...DEFAULT_RPCS },
     configError: null,
@@ -38,6 +56,7 @@ export function defaultStore(): Store {
     settings: defaultSettings(),
     bridge: { connected: false, error: null, at: null },
     vaultError: null,
+    offlineSigning: null,
   };
 }
 
@@ -60,14 +79,15 @@ export function normalizeStore(value: unknown): Store {
       ...base.settings,
       ...settings,
       rpc: { ...DEFAULT_RPCS, ...settings.rpc },
-      authUrl: settings.authUrl ?? '',
-      privyKeyQuorumId: settings.privyKeyQuorumId ?? '',
+      authUrl: settings.authUrl || DEFAULT_AUTH_URL,
+      privyKeyQuorumId: settings.privyKeyQuorumId || DEFAULT_KEY_QUORUM_ID,
       ownerKey: settings.ownerKey ?? '',
     },
     pendingApproval: pendingShape(raw.pendingApproval) ? raw.pendingApproval : null,
     approval: approvalShape(raw.approval) ? raw.approval : null,
     bridge: { ...base.bridge, ...raw.bridge },
     vaultError: raw.vaultError ?? null,
+    offlineSigning: raw.offlineSigning === false ? false : null,
   };
 }
 

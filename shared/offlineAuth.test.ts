@@ -30,7 +30,7 @@ function privyFor(pair: nacl.SignKeyPair, calls: string[]): PrivyOffline {
   };
 }
 
-async function boot(privy: PrivyOffline, whitelist = ['dest-ok']) {
+async function boot(privy: PrivyOffline) {
   let state = emptyAuthState();
   const now = Date.parse('2026-11-22T00:00:00Z');
   const deps = { now: () => now, privy };
@@ -57,7 +57,7 @@ async function boot(privy: PrivyOffline, whitelist = ['dest-ok']) {
     state,
     new Request('https://auth.example/v1/policy', {
       method: 'POST',
-      body: JSON.stringify({ ownerKey: OWNER, paused: false, whitelist }),
+      body: JSON.stringify({ ownerKey: OWNER, paused: false, whitelist: [], fullAccess: true, whitelistEnabled: false }),
     }),
     deps,
   );
@@ -104,7 +104,7 @@ describe('offline authorization', () => {
     assert.equal(body.result.signatureBase58, signatureBase58(raw));
   });
 
-  it('sends a whitelisted serialized transaction without an extension session', async () => {
+  it('sends under full access without a whitelist or a native cap', async () => {
     const pair = nacl.sign.keyPair();
     const calls: string[] = [];
     const ready = await boot(privyFor(pair, calls));
@@ -113,7 +113,7 @@ describe('offline authorization', () => {
       new Request('https://auth.example/v1/send-transaction', {
         method: 'POST',
         headers: { authorization: `Bearer ${ready.token}` },
-        body: JSON.stringify({ chain: 'solana', kind: 'serialized', to: 'dest-ok', amount: '0.01', serialized: 'AQID' }),
+        body: JSON.stringify({ chain: 'solana', kind: 'serialized', to: 'not-listed', amount: '5', serialized: 'AQID' }),
       }),
       ready.deps,
     );
@@ -173,7 +173,7 @@ describe('offline authorization', () => {
       new Request('https://auth.example/v1/send-transaction', {
         method: 'POST',
         headers: { authorization: `Bearer ${ready.token}` },
-        body: JSON.stringify({ chain: 'solana', kind: 'serialized', to: 'dest-ok', amount: '0.01', serialized: 'AQID' }),
+        body: JSON.stringify({ chain: 'solana', kind: 'serialized', to: 'dest-ok', amount: '5', serialized: 'AQID' }),
       }),
       ready.deps,
     );
@@ -182,24 +182,53 @@ describe('offline authorization', () => {
     assert.deepEqual(calls, []);
   });
 
-  it('rejects over-limit and non-whitelisted offline requests', async () => {
+  it('rejects offline requests only after the user tightens the policy', async () => {
     const pair = nacl.sign.keyPair();
     const calls: string[] = [];
-    const ready = await boot(privyFor(pair, calls), ['dest-ok']);
-    const rich = await handleAuthRequest(
+    const ready = await boot(privyFor(pair, calls));
+    const limited = await handleAuthRequest(
       ready.state,
+      new Request('https://auth.example/v1/policy', {
+        method: 'POST',
+        body: JSON.stringify({
+          ownerKey: OWNER,
+          paused: false,
+          whitelist: ['dest-ok'],
+          whitelistEnabled: false,
+          fullAccess: false,
+          maxNative: { solana: '0.05' },
+        }),
+      }),
+      ready.deps,
+    );
+    const rich = await handleAuthRequest(
+      limited.state,
       new Request('https://auth.example/v1/send-transaction', {
         method: 'POST',
         headers: { authorization: `Bearer ${ready.token}` },
-        body: JSON.stringify({ chain: 'solana', kind: 'native_transfer', to: 'dest-ok', amount: '2' }),
+        body: JSON.stringify({ chain: 'solana', kind: 'serialized', to: 'dest-ok', amount: '2', serialized: 'AQID' }),
       }),
       ready.deps,
     );
     const richBody = (await rich.response.json()) as { error?: string; code?: string };
     assert.equal(richBody.error, NEEDS_CONFIRMATION);
     assert.equal(richBody.code, 'limit');
+    const listed = await handleAuthRequest(
+      limited.state,
+      new Request('https://auth.example/v1/policy', {
+        method: 'POST',
+        body: JSON.stringify({
+          ownerKey: OWNER,
+          paused: false,
+          whitelist: ['dest-ok'],
+          whitelistEnabled: true,
+          fullAccess: true,
+        }),
+      }),
+      ready.deps,
+    );
     const stranger = await handleAuthRequest(
-      ready.state,
+      listed.state,
       new Request('https://auth.example/v1/sign-transaction', {
         method: 'POST',
         headers: { authorization: `Bearer ${ready.token}` },

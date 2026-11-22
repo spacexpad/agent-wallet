@@ -3,8 +3,8 @@
   "privyClientId": "",
   "bridgeUrl": "http://127.0.0.1:47321",
   "bridgeToken": "",
-  "authUrl": "",
-  "privyKeyQuorumId": "",
+  "authUrl": "https://spacexpad-agent-wallet-auth.timmy2048.workers.dev",
+  "privyKeyQuorumId": "nzzqzkcm5vuy8ed6x3wlibww",
   "rpc": {
     "solana:mainnet": "https://solana-rpc.publicnode.com",
     "solana:devnet": "https://api.devnet.solana.com",
