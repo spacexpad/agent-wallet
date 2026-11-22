@@ -79,6 +79,7 @@
         <li>The loopback bridge token, which the extension reads from the local MCP server. You are not asked to paste it into Settings</li>
         <li>Your email address and Privy user id after you sign in</li>
         <li>Display name, language, and risk-policy settings</li>
+        <li>Optional RPC endpoints you enter in Settings. An empty field is not stored. A URL you enter stays in extension local storage and is not sent to SpaceXpad. It may include a query string from your provider</li>
         <li>Bound agent names and binding tokens</li>
         <li>A PAIR_CODE while a pairing is in progress. It expires in 30 minutes</li>
         <li>Wallet addresses after login</li>
@@ -94,7 +95,7 @@
       <p>When you use the extension, it contacts:</p>
       <ul>
         <li><strong>Privy</strong> (<code>auth.privy.io</code>, <code>api.privy.io</code>, other <code>privy.io</code> hosts the SDK uses, and <code>rpc.privy.systems</code>) to sign you in with email or Google, to create the embedded wallets, and to sign. Your email address, or your Google account if you choose Google, is handled by Privy. Privy's own privacy policy applies to that account.</li>
-        <li><strong>Public RPC providers</strong> to read balances and submit transactions. Defaults are PublicNode for Solana mainnet, Ethereum, Base, and BNB Chain, and <code>api.devnet.solana.com</code> for Solana devnet. A testnet or devnet host is used only when the request names that cluster. These calls send the public address and, when you broadcast, the signed transaction.</li>
+        <li><strong>Public RPC providers</strong> to read balances and submit transactions. Defaults are PublicNode for Solana mainnet, Ethereum, Base, and BNB Chain, and <code>api.devnet.solana.com</code> for Solana devnet. A testnet or devnet host is used only when the request names that cluster. If you save an RPC endpoint for a cluster, balance reads and broadcasts for that cluster go to that host instead. These calls send the public address and, when you broadcast, the signed transaction.</li>
         <li><strong>Blockscout</strong> (<code>eth.blockscout.com</code>, <code>base.blockscout.com</code>, and the Sepolia hosts for those chains) to list fungible tokens for the public EVM address.</li>
         <li><strong>Jupiter</strong> (<code>lite-api.jup.ag</code>) with the Solana address, only when the Solana token-account read is blocked and the extension falls back to Jupiter's public holdings API.</li>
         <li><strong>Binplorer</strong> (<code>api.binplorer.com</code>) with the BNB Chain address to list fungible tokens. The request includes Binplorer's published <code>apiKey=freekey</code> parameter. That value is not a SpaceXpad secret. BNB Chain testnet token lists are not requested.</li>

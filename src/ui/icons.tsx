@@ -120,7 +120,7 @@ export function CopyIcon() {
   );
 }
 
-export type SettingsIconName = 'user' | 'language' | 'risk' | 'list' | 'activity' | 'network';
+export type SettingsIconName = 'user' | 'language' | 'risk' | 'list' | 'activity' | 'network' | 'rpc';
 
 export function SettingsGlyph({ name }: { name: SettingsIconName }) {
   return (
@@ -158,6 +158,12 @@ export function SettingsGlyph({ name }: { name: SettingsIconName }) {
           <circle cx="11.8" cy="4.5" r="1.5" fill="none" stroke="currentColor" strokeWidth="1.3" />
           <circle cx="11.8" cy="11.5" r="1.5" fill="none" stroke="currentColor" strokeWidth="1.3" />
           <path d="M5.6 7.3 10.3 5.2M5.6 8.7l4.7 2.1" fill="none" stroke="currentColor" strokeWidth="1.3" />
+        </>
+      ) : null}
+      {name === 'rpc' ? (
+        <>
+          <circle cx="8" cy="8" r="1.7" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          <path d="M8 2.6v2.2M8 11.2v2.2M2.6 8h2.2M11.2 8h2.2" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
         </>
       ) : null}
     </svg>

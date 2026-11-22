@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { displayNetwork } from '../../shared/assets.ts';
-import { browserRpcUrl, resolveCluster } from '../../shared/chains.ts';
+import { clusterRpcUrl, resolveCluster } from '../../shared/chains.ts';
 import { CHAIN_ORDER, type ChainId, type Snapshot, type Store } from '../../shared/types.ts';
 import { readClusterBalance } from '../lib/balances.ts';
 import { updateStore } from '../lib/storage.ts';
@@ -12,10 +12,7 @@ export function useMainnetBalances(store: Store): { pending: boolean; refresh: (
   const solana = store.addresses?.solana ?? '';
   const evm = store.addresses?.evm ?? '';
   const view = store.assetView ?? 'mainnet';
-  const rpcKey = CHAIN_ORDER.map((chain) => {
-    const network = displayNetwork(chain, view);
-    return store.settings.rpc[`${chain}:${network}`] ?? '';
-  }).join('|');
+  const rpcKey = CHAIN_ORDER.map((chain) => clusterRpcUrl(store.settings, chain, displayNetwork(chain, view))).join('|');
 
   useEffect(() => {
     if (!ready) {
@@ -51,7 +48,7 @@ export function useMainnetBalances(store: Store): { pending: boolean; refresh: (
 async function readOne(store: Store, chain: ChainId, view: Store['assetView']): Promise<Snapshot> {
   const network = displayNetwork(chain, view);
   const cluster = resolveCluster(chain, network);
-  const rpcUrl = browserRpcUrl(chain, network, store.settings.rpc[cluster.rpcKey] ?? '');
+  const rpcUrl = clusterRpcUrl(store.settings, chain, network);
   if (!rpcUrl) return failed(chain, network, `No RPC is configured for ${cluster.rpcKey}.`);
   try {
     return await readClusterBalance({

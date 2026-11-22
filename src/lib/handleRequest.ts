@@ -1,4 +1,4 @@
-import { browserRpcUrl, resolveCluster } from '../../shared/chains.ts';
+import { clusterRpcUrl, resolveCluster } from '../../shared/chains.ts';
 import { policyText } from '../../shared/i18n.ts';
 import { classifyInbound, isBindToken } from '../../shared/inbound.ts';
 import {
@@ -44,7 +44,7 @@ export async function handleAgentRequest(deps: HandlerDeps, inbound: unknown): P
         return await signMessageRequest(deps, request, store, agent.name);
       case 'get_balance': {
         const cluster = resolveCluster(request.params.chain, request.params.network);
-        const rpcUrl = browserRpcUrl(cluster.chain, cluster.network, store.settings.rpc[cluster.rpcKey] ?? '');
+        const rpcUrl = clusterRpcUrl(store.settings, cluster.chain, cluster.network);
         if (!rpcUrl) return { ok: false, error: `No RPC is configured for ${cluster.rpcKey}.` };
         return await balanceRequest(deps, store, agent.name, cluster, rpcUrl);
       }
@@ -115,7 +115,7 @@ async function signOrSend(
   agentName: string,
 ): Promise<AgentResult> {
   const cluster = resolveCluster(inbound.params.chain, inbound.params.network);
-  const rpcUrl = browserRpcUrl(cluster.chain, cluster.network, store.settings.rpc[cluster.rpcKey] ?? '');
+  const rpcUrl = clusterRpcUrl(store.settings, cluster.chain, cluster.network);
   if (!rpcUrl) return { ok: false, error: `No RPC is configured for ${cluster.rpcKey}.` };
 
   if (store.policy.agentsPaused) {

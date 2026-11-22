@@ -61,7 +61,7 @@ Bind an agent before the wallet can be used:
 3. The agent calls `spacexpad_pair` and shows an `spx_bind_...` token.
 4. Paste that token into the bind screen. Remove the agent later from the Agent tab to revoke it.
 
-Settings cover language (简体中文, 繁體中文, English), username, and the risk policy. Full access is the default: no USD cap. You can switch on a single-transaction USD limit and a daily USD limit. An optional whitelist allows signing only when each destination is on the list (the recipient for a native transfer, the contract for a call, the mint for an SPL transfer). The kill switch pauses signing and sending for every agent. Balance reads still work. Resume is on the paused line and in Settings.
+Settings cover language (简体中文, 繁體中文, English), username, the risk policy, and optional RPC endpoints. An empty RPC field keeps that cluster on the public endpoint from the packed config. A URL entered there is stored only in extension local storage and is used for balance, quote, sign, and send on that cluster. It does not change which network the popup shows, and agent requests still use mainnet unless they name a test network. Full access is the default: no USD cap. You can switch on a single-transaction USD limit and a daily USD limit. An optional whitelist allows signing only when each destination is on the list (the recipient for a native transfer, the contract for a call, the mint for an SPL transfer). The kill switch pauses signing and sending for every agent. Balance reads still work. Resume is on the paused line and in Settings.
 
 If a price is missing while a limit is on, the extension refuses the signature. It does not invent a transaction hash.
 

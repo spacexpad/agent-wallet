@@ -17,4 +17,5 @@ test('source manifest stays Manifest V3 and pins the unpacked id', async () => {
   assert.equal(hosts.includes('<all_urls>'), false);
   assert.equal(hosts.includes('https://bsc.blockscout.com/*'), false);
   assert.equal(hosts.includes('https://api.mainnet-beta.solana.com/*'), false);
+  assert.deepEqual(manifest.optional_host_permissions, ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*', 'http://[::1]/*']);
 });

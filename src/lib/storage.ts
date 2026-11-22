@@ -1,4 +1,4 @@
-import { DEFAULT_RPCS } from '../../shared/chains.ts';
+import { mergePackedRpc, sanitizeRpcOverrides } from '../../shared/chains.ts';
 import { DEFAULT_AUTH_URL, DEFAULT_KEY_QUORUM_ID, defaultStore, normalizeStore } from '../../shared/store.ts';
 import type { Settings, Store } from '../../shared/types.ts';
 
@@ -26,6 +26,35 @@ export async function updateStore(patch: (store: Store) => Store): Promise<Store
   });
 }
 
+export function applyConfigHydration(store: Store, file: FileConfig | null, configError: string | null): Store {
+  const rpcOverrides = sanitizeRpcOverrides(store.settings.rpcOverrides);
+  if (store.settings.hydrated) {
+    return {
+      ...store,
+      settings: {
+        ...store.settings,
+        authUrl: file?.authUrl?.trim() || store.settings.authUrl || DEFAULT_AUTH_URL,
+        privyKeyQuorumId: file?.privyKeyQuorumId?.trim() || store.settings.privyKeyQuorumId || DEFAULT_KEY_QUORUM_ID,
+        rpcOverrides,
+      },
+    };
+  }
+  const settings: Settings = {
+    ...store.settings,
+    hydrated: true,
+    privyAppId: cleanId(file?.privyAppId) || store.settings.privyAppId,
+    privyClientId: cleanId(file?.privyClientId),
+    bridgeUrl: file?.bridgeUrl?.trim() || store.settings.bridgeUrl,
+    bridgeToken: file?.bridgeToken?.trim() || store.settings.bridgeToken,
+    authUrl: file?.authUrl?.trim() || store.settings.authUrl || DEFAULT_AUTH_URL,
+    privyKeyQuorumId: file?.privyKeyQuorumId?.trim() || store.settings.privyKeyQuorumId || DEFAULT_KEY_QUORUM_ID,
+    rpc: mergePackedRpc(file?.rpc),
+    rpcOverrides,
+    configError,
+  };
+  return { ...store, settings };
+}
+
 export async function hydrateConfig(): Promise<void> {
   let file: FileConfig | null = null;
   let configError: string | null = null;
@@ -35,31 +64,7 @@ export async function hydrateConfig(): Promise<void> {
   } catch (error) {
     configError = error instanceof Error ? error.message : 'Could not read config.json.';
   }
-  await updateStore((store) => {
-    if (store.settings.hydrated) {
-      return {
-        ...store,
-        settings: {
-          ...store.settings,
-          authUrl: file?.authUrl?.trim() || store.settings.authUrl || DEFAULT_AUTH_URL,
-          privyKeyQuorumId: file?.privyKeyQuorumId?.trim() || store.settings.privyKeyQuorumId || DEFAULT_KEY_QUORUM_ID,
-        },
-      };
-    }
-    const settings: Settings = {
-      ...store.settings,
-      hydrated: true,
-      privyAppId: cleanId(file?.privyAppId) || store.settings.privyAppId,
-      privyClientId: cleanId(file?.privyClientId),
-      bridgeUrl: file?.bridgeUrl?.trim() || store.settings.bridgeUrl,
-      bridgeToken: file?.bridgeToken?.trim() || store.settings.bridgeToken,
-      authUrl: file?.authUrl?.trim() || store.settings.authUrl || DEFAULT_AUTH_URL,
-      privyKeyQuorumId: file?.privyKeyQuorumId?.trim() || store.settings.privyKeyQuorumId || DEFAULT_KEY_QUORUM_ID,
-      rpc: { ...DEFAULT_RPCS, ...file?.rpc },
-      configError,
-    };
-    return { ...store, settings };
-  });
+  await updateStore((store) => applyConfigHydration(store, file, configError));
 }
 
 export function subscribeStore(onChange: (store: Store) => void): () => void {

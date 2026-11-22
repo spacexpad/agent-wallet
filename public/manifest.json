@@ -48,6 +48,12 @@
     "http://127.0.0.1:47321/*",
     "https://spacexpad-agent-wallet-auth.timmy2048.workers.dev/*"
   ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "http://[::1]/*"
+  ],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; frame-ancestors 'none';"
   }

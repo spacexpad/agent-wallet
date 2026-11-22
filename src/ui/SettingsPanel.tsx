@@ -1,14 +1,17 @@
 import { useState } from 'react';
+import { clusterRpcUrl, parseRpcOverride, rpcClusters, type Cluster } from '../../shared/chains.ts';
 import { chainName, clusterLabel, t } from '../../shared/i18n.ts';
 import { isAllowlistAddress } from '../../shared/money.ts';
 import { isDisplayName } from '../../shared/store.ts';
-import type { RiskPolicy, Store } from '../../shared/types.ts';
+import type { Lang, RiskPolicy, RpcMap, Store } from '../../shared/types.ts';
+import { CHAIN_ORDER } from '../../shared/types.ts';
 import { authPost, offlinePolicyBody } from '../lib/offlineClient.ts';
+import { requestRpcOrigins } from '../lib/rpcPermission.ts';
 import { updateStore } from '../lib/storage.ts';
 import { LanguageChoices } from './BindScreen.tsx';
 import { SettingsGlyph, type SettingsIconName } from './icons.tsx';
 
-type Page = 'home' | 'name' | 'language' | 'risk' | 'whitelist' | 'activity' | 'network';
+type Page = 'home' | 'name' | 'language' | 'risk' | 'whitelist' | 'activity' | 'network' | 'rpc';
 
 export function SettingsPanel({
   store,
@@ -27,6 +30,10 @@ export function SettingsPanel({
   const [address, setAddress] = useState('');
   const [label, setLabel] = useState('');
   const [clientId, setClientId] = useState(store.settings.privyClientId);
+  const [rpcDraft, setRpcDraft] = useState<Record<string, string>>(() =>
+    initialPage === 'rpc' ? { ...store.settings.rpcOverrides } : {},
+  );
+  const [invalidRpc, setInvalidRpc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -35,6 +42,8 @@ export function SettingsPanel({
       setUsername(store.username);
       setClientId(store.settings.privyClientId);
     }
+    if (next === 'rpc') setRpcDraft({ ...store.settings.rpcOverrides });
+    setInvalidRpc(null);
     setError(null);
     setSaved(false);
     setPage(next);
@@ -69,6 +78,19 @@ export function SettingsPanel({
     }));
   };
 
+  const saveRpc = () => {
+    const built = collectRpcOverrides(rpcDraft);
+    if (!built.ok) {
+      setInvalidRpc(built.key);
+      setError(t(lang, 'invalidRpc'));
+      setSaved(false);
+      return;
+    }
+    setInvalidRpc(null);
+    setError(null);
+    void persistRpc(built.overrides, lang, setError, setSaved, setRpcDraft);
+  };
+
   if (page === 'home') {
     return (
       <section className="panel" aria-label={t(lang, 'navSettings')}>
@@ -79,6 +101,7 @@ export function SettingsPanel({
           <SettingsRow icon="list" label={t(lang, 'whitelist')} onOpen={() => open('whitelist')} />
           <SettingsRow icon="activity" label={t(lang, 'activity')} onOpen={() => open('activity')} />
           <SettingsRow icon="network" label={t(lang, 'viewNetwork')} onOpen={() => open('network')} />
+          <SettingsRow icon="rpc" label={t(lang, 'rpcEndpoints')} onOpen={() => open('rpc')} />
         </div>
         <button type="button" className="secondary logout-home" onClick={logout}>
           {t(lang, 'logout')}
@@ -87,18 +110,16 @@ export function SettingsPanel({
     );
   }
 
-  const title =
-    page === 'name'
-      ? t(lang, 'username')
-      : page === 'language'
-        ? t(lang, 'language')
-        : page === 'risk'
-          ? t(lang, 'risk')
-          : page === 'whitelist'
-            ? t(lang, 'whitelist')
-            : page === 'activity'
-              ? t(lang, 'activity')
-              : t(lang, 'viewNetwork');
+  const titles: Record<Exclude<Page, 'home'>, 'username' | 'language' | 'risk' | 'whitelist' | 'activity' | 'viewNetwork' | 'rpcEndpoints'> = {
+    name: 'username',
+    language: 'language',
+    risk: 'risk',
+    whitelist: 'whitelist',
+    activity: 'activity',
+    network: 'viewNetwork',
+    rpc: 'rpcEndpoints',
+  };
+  const title = t(lang, titles[page]);
 
   return (
     <section className="panel" aria-labelledby="settings-page-title">
@@ -265,6 +286,22 @@ export function SettingsPanel({
           </button>
         </>
       ) : null}
+      {page === 'rpc' ? (
+        <RpcFields
+          lang={lang}
+          store={store}
+          draft={rpcDraft}
+          invalidKey={invalidRpc}
+          saved={saved}
+          onDraft={(key, value) => {
+            setRpcDraft((current) => ({ ...current, [key]: value }));
+            setInvalidRpc((current) => (current === key ? null : current));
+            setError(null);
+            setSaved(false);
+          }}
+          onSave={saveRpc}
+        />
+      ) : null}
       {page === 'network' ? (
         <>
           <p className="note">{t(lang, 'viewNetworkHelp')}</p>
@@ -317,6 +354,123 @@ export function SettingsPanel({
         </p>
       ) : null}
     </section>
+  );
+}
+
+function collectRpcOverrides(draft: Record<string, string>): { ok: true; overrides: RpcMap } | { ok: false; key: string } {
+  const overrides: RpcMap = {};
+  for (const cluster of rpcClusters()) {
+    const parsed = parseRpcOverride(draft[cluster.rpcKey] ?? '');
+    if (!parsed.ok) return { ok: false, key: cluster.rpcKey };
+    if (parsed.url) overrides[cluster.rpcKey] = parsed.url;
+  }
+  return { ok: true, overrides };
+}
+
+async function persistRpc(
+  overrides: RpcMap,
+  lang: Lang,
+  setError: (value: string | null) => void,
+  setSaved: (value: boolean) => void,
+  setDraft: (value: Record<string, string>) => void,
+): Promise<void> {
+  const granted = await requestRpcOrigins(Object.values(overrides));
+  if (!granted) {
+    setSaved(false);
+    setError(t(lang, 'rpcPermission'));
+    return;
+  }
+  await updateStore((current) => ({
+    ...current,
+    settings: { ...current.settings, rpcOverrides: overrides },
+  }));
+  setDraft(overrides);
+  setSaved(true);
+}
+
+function RpcFields({
+  lang,
+  store,
+  draft,
+  invalidKey,
+  saved,
+  onDraft,
+  onSave,
+}: {
+  lang: Lang;
+  store: Store;
+  draft: Record<string, string>;
+  invalidKey: string | null;
+  saved: boolean;
+  onDraft: (key: string, value: string) => void;
+  onSave: () => void;
+}) {
+  return (
+    <>
+      <p className="note" id="rpc-help">
+        {t(lang, 'rpcHelp')}
+      </p>
+      {CHAIN_ORDER.map((chain) => (
+        <div key={chain}>
+          <p className="rpc-chain">{chainName(lang, chain)}</p>
+          {rpcClusters()
+            .filter((cluster) => cluster.chain === chain)
+            .map((cluster) => (
+              <RpcField
+                key={cluster.rpcKey}
+                lang={lang}
+                cluster={cluster}
+                value={draft[cluster.rpcKey] ?? ''}
+                placeholder={clusterRpcUrl({ rpc: store.settings.rpc }, cluster.chain, cluster.network)}
+                invalid={invalidKey === cluster.rpcKey}
+                onChange={(value) => onDraft(cluster.rpcKey, value)}
+              />
+            ))}
+        </div>
+      ))}
+      <button type="button" className="primary" onClick={onSave}>
+        {t(lang, 'save')}
+      </button>
+      {saved ? <p className="note">{t(lang, 'savedQuiet')}</p> : null}
+    </>
+  );
+}
+
+function RpcField({
+  lang,
+  cluster,
+  value,
+  placeholder,
+  invalid,
+  onChange,
+}: {
+  lang: Lang;
+  cluster: Cluster;
+  value: string;
+  placeholder: string;
+  invalid: boolean;
+  onChange: (value: string) => void;
+}) {
+  const id = `rpc-${cluster.rpcKey.replace(':', '-')}`;
+  const network = cluster.network === 'mainnet' ? t(lang, 'viewMainnet') : clusterLabel(lang, cluster.chain, cluster.network);
+  return (
+    <label className="field" htmlFor={id}>
+      <span>{network}</span>
+      <input
+        id={id}
+        className="rpc-input"
+        value={value}
+        placeholder={placeholder}
+        inputMode="url"
+        spellCheck={false}
+        autoCapitalize="off"
+        autoCorrect="off"
+        autoComplete="off"
+        aria-invalid={invalid}
+        aria-describedby="rpc-help"
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
   );
 }
 

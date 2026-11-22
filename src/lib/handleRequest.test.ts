@@ -448,3 +448,118 @@ describe('bound agent auto-sign guards', () => {
     assert.equal(messages, 0);
   });
 });
+
+describe('rpc override on balance, quote, and sign', () => {
+  function storeWithRpc(rpcOverrides: Record<string, string>, rpc: Record<string, string> = {}): Store {
+    const store = readyStore();
+    store.settings = {
+      ...store.settings,
+      rpc: { ...store.settings.rpc, ...rpc },
+      rpcOverrides,
+    };
+    return store;
+  }
+
+  function recording(store: Store) {
+    const seen: { kind: string; rpcUrl: string }[] = [];
+    const box = harness(store, {
+      readBalance: async (input) => {
+        seen.push({ kind: 'balance', rpcUrl: input.rpcUrl });
+        const snapshot: Snapshot = {
+          chain: input.chain,
+          network: input.network === 'devnet' || input.network === 'testnet' ? input.network : 'mainnet',
+          status: 'ready',
+          error: null,
+          tokenListError: null,
+          assets: [],
+          readAt: 1,
+        };
+        return snapshot;
+      },
+      quote: async (_params, rpcUrl) => {
+        seen.push({ kind: 'quote', rpcUrl });
+        return { destinations: ['0xabc'], transferMicroUsd: 1n };
+      },
+      sign: async (_params, rpcUrl) => {
+        seen.push({ kind: 'sign', rpcUrl });
+        return { hash: 'submitted-hash', signedTransaction: 'signed' };
+      },
+    });
+    return { box, seen };
+  }
+
+  it('uses the override for one cluster and the packed URL for the others', async () => {
+    const { box, seen } = recording(
+      storeWithRpc({
+        'solana:mainnet': 'https://rpc.example/user-sol',
+        'base:testnet': '   ',
+      }),
+    );
+    const balance = await handleAgentRequest(box.deps, {
+      id: 'rpc-b1',
+      method: 'get_balance',
+      params: { bindToken: TOKEN, chain: 'solana' },
+    });
+    assert.equal(balance.ok, true);
+    assert.deepEqual(seen, [{ kind: 'balance', rpcUrl: 'https://rpc.example/user-sol' }]);
+
+    seen.length = 0;
+    const other = await handleAgentRequest(box.deps, {
+      id: 'rpc-b2',
+      method: 'get_balance',
+      params: { bindToken: TOKEN, chain: 'ethereum' },
+    });
+    assert.equal(other.ok, true);
+    assert.deepEqual(seen, [{ kind: 'balance', rpcUrl: 'https://rpc.example/eth' }]);
+
+    seen.length = 0;
+    const blank = await handleAgentRequest(box.deps, {
+      id: 'rpc-b3',
+      method: 'get_balance',
+      params: { bindToken: TOKEN, chain: 'base', network: 'testnet' },
+    });
+    assert.equal(blank.ok, true);
+    assert.deepEqual(seen, [{ kind: 'balance', rpcUrl: 'https://rpc.example/base-test' }]);
+
+    seen.length = 0;
+    const signed = await handleAgentRequest(box.deps, {
+      id: 'rpc-s1',
+      method: 'sign',
+      params: { bindToken: TOKEN, chain: 'solana', kind: 'native_transfer', to: 'dest', amount: '0.01' },
+    });
+    assert.equal(signed.ok, true);
+    assert.equal(seen[0]?.kind, 'quote');
+    assert.equal(seen[0]?.rpcUrl, 'https://rpc.example/user-sol');
+    assert.equal(seen[1]?.kind, 'sign');
+    assert.equal(seen[1]?.rpcUrl, 'https://rpc.example/user-sol');
+
+    seen.length = 0;
+    const sent = await handleAgentRequest(box.deps, {
+      id: 'rpc-s2',
+      method: 'send',
+      params: { bindToken: TOKEN, chain: 'base', kind: 'native_transfer', to: '0xabc', amount: '1' },
+    });
+    assert.equal(sent.ok, true);
+    assert.equal(seen[0]?.rpcUrl, 'https://rpc.example/base');
+    assert.equal(seen[1]?.rpcUrl, 'https://rpc.example/base');
+  });
+
+  it('passes a user Solana Labs URL through and still rewrites the packed public one', async () => {
+    const labs = 'https://api.mainnet-beta.solana.com';
+    const user = recording(storeWithRpc({ 'solana:mainnet': labs }, { 'solana:mainnet': 'https://rpc.example/sol' }));
+    await handleAgentRequest(user.box.deps, {
+      id: 'rpc-labs',
+      method: 'get_balance',
+      params: { bindToken: TOKEN, chain: 'solana' },
+    });
+    assert.equal(user.seen[0]?.rpcUrl, labs);
+
+    const packed = recording(storeWithRpc({}, { 'solana:mainnet': labs }));
+    await handleAgentRequest(packed.box.deps, {
+      id: 'rpc-public',
+      method: 'get_balance',
+      params: { bindToken: TOKEN, chain: 'solana' },
+    });
+    assert.equal(packed.seen[0]?.rpcUrl, 'https://solana-rpc.publicnode.com');
+  });
+});
