@@ -1,6 +1,6 @@
 # SpaceXpad local MCP
 
-The launchpad is [https://spacexpad.xyz/](https://spacexpad.xyz/). Checked on 21 November 2026, without changing the site:
+The launchpad is [https://spacexpad.xyz/](https://spacexpad.xyz/). Paths below were checked on 21 November 2026, without changing the site. `/agent-wallet/skill.md` was checked again on 22 November 2026.
 
 | Path | Result | Belongs to |
 | --- | --- | --- |
@@ -10,11 +10,11 @@ The launchpad is [https://spacexpad.xyz/](https://spacexpad.xyz/). Checked on 21
 | `/prompt`, `/prompts`, `/docs`, `/faq` | 404, still not used for this wallet | leave empty |
 | `/wallet`, `/wallet/` | 404 | left unused; the homepage already says “agent wallet” |
 | `/agent-wallet`, `/agent-wallet/` | 404 | not the document |
-| `/agent-wallet/skill.md` | 404 | reserved document for this extension |
+| `/agent-wallet/skill.md` | 200 on 22 November 2026, older draft | official setup document for this extension |
 
-The reserved public document is `https://spacexpad.xyz/agent-wallet/skill.md`. It is not published, and it is not `/skill` or `/skill.md`. The review copy is `docs/agent-wallet/skill.md`. Do not write this extension's setup onto `/`, `/skill`, `/skill.md`, `/agents`, `/prompt`, or `/docs`. Publishing that new file is a later site change, not part of this repo. Until it exists, the runnable server is the local process below. Do not put a pair code or bridge token in the public URL.
+The official setup document is `https://spacexpad.xyz/agent-wallet/skill.md`. It is not `/skill` or `/skill.md`. The copy to host is `docs/agent-wallet/skill.md`. On 22 November 2026 the live page still told the user to paste a bridge token into Settings. That instruction is wrong. Do not write this extension's setup onto `/`, `/skill`, `/skill.md`, `/agents`, `/prompt`, or `/docs`. Do not put a pair code or bridge token in the public URL.
 
-The agent bridge is a process you run on the same computer as Chrome. It is not a hosted service. Do not point a client at a public URL. Do not put the bridge token or a pair code in a public page. The pair code is only inside the prompt the extension copies after the user asks for it.
+Install the MCP server on the agent's own device first. Use the user's computer only when that agent has no device of its own. The loopback bridge is not a hosted wallet. Offline signing uses the authorization Worker `https://spacexpad-agent-wallet-auth.timmy2048.workers.dev` after the extension grants it. Set `SPACEXPAD_AUTH_URL` to that origin on the agent device. Do not put the bridge token, a pair code, the Privy App Secret, or the authorization private key in a public page.
 
 ## What it does
 

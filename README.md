@@ -2,7 +2,7 @@
 
 The launchpad is [https://spacexpad.xyz/](https://spacexpad.xyz/). On 21 November 2026 these paths were already live and belong to that site: `/` (launch prompts), `/skill` and `/skill.md` (the Solana fair-mint skill), and `/agents` (how agents participate). This extension does not use them.
 
-The reserved setup document is [https://spacexpad.xyz/agent-wallet/skill.md](https://spacexpad.xyz/agent-wallet/skill.md). On 21 November 2026 that URL returned 404. It is not `/skill` or `/skill.md`. The review copy is `docs/agent-wallet/skill.md`. Nothing was deployed. Pair codes and bridge tokens stay out of that URL. They appear only after someone copies a prompt or starts the local server.
+The official setup document is [https://spacexpad.xyz/agent-wallet/skill.md](https://spacexpad.xyz/agent-wallet/skill.md). It is not `/skill` or `/skill.md`. The copy to host is `docs/agent-wallet/skill.md`. On 22 November 2026 the live page was an older draft that told the user to paste a bridge token into Settings. That instruction is wrong. Pair codes and bridge tokens stay out of that URL. They appear only after someone copies a prompt or starts the local server.
 
 Chrome extension for a keyless multi-chain vault. Privy creates the wallets and signs. A paired agent, through a local MCP server, can read balances, request a signature, or submit a transaction. The extension enforces the risk policy and the kill switch.
 
@@ -65,6 +65,8 @@ Settings cover language (简体中文, 繁體中文, English), username, and the
 
 If a price is missing while a limit is on, the extension refuses the signature. It does not invent a transaction hash.
 
+Offline signing is on by default after login once an agent is bound. The extension grants the Privy signer without a separate opt-in. A bound agent can then sign and send while Chrome is closed, through `https://spacexpad-agent-wallet-auth.timmy2048.workers.dev`. You can turn that off in the Agent tab. Unbound, revoked, and paused requests are still rejected. Install the MCP server on the agent's own device first, with `SPACEXPAD_AUTH_URL` set to that same origin. Use this computer only when the agent has no device of its own. The Worker does not receive an exported private key or the seed. Do not put the Privy App Secret or the authorization private key in the extension.
+
 ## MCP and skill
 
 There is no hosted MCP URL. Setup is in `MCP.md`. From this repo:
@@ -113,4 +115,10 @@ RPC URLs live in `config.example.json` and can be overridden in `config.json`. P
 
 ## Store submission
 
-Not part of this build. See `CHROMEWEBSTORE.md` for listing copy, permission justifications, and the asset checklist, and `PRIVACY.md` for the draft policy. Publishing will replace the unpacked extension ID. Update the Privy origin and redirect URL when that happens.
+`CHROMEWEBSTORE.md` is the dashboard copy. `PRIVACY.md` matches the page to host at `https://spacexpad.xyz/agent-wallet/privacy` (`docs/agent-wallet/privacy.html`). Do not deploy that page from this repo, and do not replace `/`, `/skill`, `/skill.md`, or `/agents`.
+
+```bash
+npm run pack:store
+```
+
+The zip is `store/spacexpad-agent-wallet-0.1.0.zip`. It is built from `dist` only, and `key` is removed from the zip's manifest. `public/manifest.json` keeps `key`, so the unpacked id stays `kgjgdglopjkfahcipgkpnnkenjnoineo`. After Chrome assigns a store id, add `chrome-extension://<new-id>/` and `https://<new-id>.chromiumapp.org/` on Privy app `cmwqh29x000hj0glajlwjht0s` before publishing, or Google login fails.
