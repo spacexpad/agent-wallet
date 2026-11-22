@@ -5,9 +5,9 @@ description: Use the SpaceXpad agent wallet through its local MCP server. Pair w
 
 # SpaceXpad agent wallet
 
-The wallet is a Chrome extension for the launchpad at [https://spacexpad.xyz/](https://spacexpad.xyz/). Privy holds the keys. This skill talks to the local MCP server `spacexpad-agent-wallet`, which forwards each call to the extension over `http://127.0.0.1:47321`. The reserved public document is `https://spacexpad.xyz/agent-wallet/skill.md` and it is not published. The review copy in this repo is `docs/agent-wallet/skill.md`. Do not use the launchpad's `/skill`, `/skill.md`, or `/agents` pages for this extension. There is no hosted wallet endpoint.
+The wallet is a Chrome extension for the launchpad at [https://spacexpad.xyz/](https://spacexpad.xyz/). Privy holds the keys. Install the MCP server `spacexpad-agent-wallet` on the agent device first, and point it at the authorization Worker with `SPACEXPAD_AUTH_URL`. Use the user's computer only when the agent has no runtime. The reserved public document is `https://spacexpad.xyz/agent-wallet/skill.md` and it is not published. The review copy in this repo is `docs/agent-wallet/skill.md`. Do not use the launchpad's `/skill`, `/skill.md`, or `/agents` pages for this extension.
 
-The extension enforces the user's risk policy and kill switch. A successfully bound agent has sign and send completed automatically, including `spacexpad_sign_message`, `spacexpad_sign_transaction`, and `spacexpad_send_transaction`, on mainnet and on devnet or testnet. The extension does not wait for a confirmation click. An unbound request, a revoked binding, or a request while the kill switch is on is rejected and nothing is signed.
+A successfully bound agent that the user has explicitly allowed to sign offline can complete `spacexpad_sign_message`, `spacexpad_sign_transaction`, and `spacexpad_send_transaction` while Chrome is closed. Unbound, revoked, and paused requests are rejected and nothing is signed. Offline sends outside the whitelist or over the native amount cap are not signed and are not queued. Loopback `http://127.0.0.1:47321` remains the fallback when offline signing was not granted and the extension is open.
 
 ## Install and run
 
@@ -16,8 +16,10 @@ From a checkout of this repository:
 ```bash
 npm install
 npm run build
-node --experimental-strip-types mcp/src/index.ts
+SPACEXPAD_AUTH_URL=https://<authorization-worker> node --experimental-strip-types mcp/src/index.ts
 ```
+
+Do not put a Privy app secret or authorization private key in this command or in the extension. Those stay in Worker secrets.
 
 `npm run mcp` is the same process. Cursor or Claude Desktop:
 
@@ -67,7 +69,7 @@ Solana test traffic is `devnet`, not `testnet`. Ethereum and Base `testnet` mean
 - `spacexpad_get_balance` — native balance plus other fungible tokens. A zero native balance is a real read. If `tokenListError` is set, say that the token list failed instead of claiming the wallet holds only the native asset.
 - `spacexpad_sign_transaction` — sign only. Return the signed transaction. Do not tell the user it was sent.
 - `spacexpad_send_transaction` — sign and submit. Report a hash only if the tool result includes one. Status `submitted` means the RPC accepted it, not that it is confirmed.
-- `spacexpad_sign_message` — Ed25519-sign arbitrary bytes with the bound Solana wallet. `chain` must be `solana`. Omit `network` for mainnet; Solana test traffic is `devnet`. `encoding` defaults to `utf8` and signs those exact bytes with no prefix. `signature` in the result is base64, which is the `signature` field for `POST https://spacexpad.xyz/api/agent/verify` together with `wallet` set to `publicKey`. `signatureBase58` is the same bytes. A successfully bound agent is signed automatically, with no confirmation click. Do not substitute a transaction signature.
+- `spacexpad_sign_message` — Ed25519-sign arbitrary bytes with the bound Solana wallet. `chain` must be `solana`. Omit `network` for mainnet; Solana test traffic is `devnet`. `encoding` defaults to `utf8` and signs those exact bytes with no prefix. `signature` in the result is base64, which is the `signature` field for `POST https://spacexpad.xyz/api/agent/verify` together with `wallet` set to `publicKey`. `signatureBase58` is the same bytes. After an explicit offline grant, this can complete while Chrome is closed. Do not substitute a transaction signature.
 
 `kind` is `native_transfer` (`to` + human `amount`) or `serialized` (hex or base64 transaction).
 

@@ -3,6 +3,8 @@
   "privyClientId": "",
   "bridgeUrl": "http://127.0.0.1:47321",
   "bridgeToken": "",
+  "authUrl": "",
+  "privyKeyQuorumId": "",
   "rpc": {
     "solana:mainnet": "https://solana-rpc.publicnode.com",
     "solana:devnet": "https://api.devnet.solana.com",

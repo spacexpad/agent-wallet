@@ -3,6 +3,7 @@ import { chainName, clusterLabel, t } from '../../shared/i18n.ts';
 import { isAllowlistAddress } from '../../shared/money.ts';
 import { isDisplayName } from '../../shared/store.ts';
 import type { Store } from '../../shared/types.ts';
+import { authPost } from '../lib/offlineClient.ts';
 import { updateStore } from '../lib/storage.ts';
 import { LanguageChoices } from './BindScreen.tsx';
 import { SettingsGlyph, type SettingsIconName } from './icons.tsx';
@@ -186,10 +187,23 @@ export function SettingsPanel({
             type="button"
             className="secondary"
             onClick={() => {
-              void updateStore((current) => ({
-                ...current,
-                policy: { ...current.policy, agentsPaused: !current.policy.agentsPaused },
-              }));
+              const paused = !store.policy.agentsPaused;
+              void (async () => {
+                await updateStore((current) => ({
+                  ...current,
+                  policy: { ...current.policy, agentsPaused: paused },
+                }));
+                if (!store.settings.authUrl || !store.settings.ownerKey) return;
+                try {
+                  await authPost(store.settings, '/v1/policy', {
+                    ownerKey: store.settings.ownerKey,
+                    paused,
+                    whitelist: store.policy.whitelist.map((entry) => entry.address),
+                  });
+                } catch {
+                  // The local kill switch still applies while this browser is open.
+                }
+              })();
             }}
           >
             {store.policy.agentsPaused ? t(lang, 'resume') : t(lang, 'pause')}

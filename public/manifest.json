@@ -49,7 +49,8 @@
     "https://bsc.blockscout.com/*",
     "https://bsc-testnet.blockscout.com/*",
     "https://coins.llama.fi/*",
-    "http://127.0.0.1:47321/*"
+    "http://127.0.0.1:47321/*",
+    "https://*.workers.dev/*"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; frame-ancestors 'none';"

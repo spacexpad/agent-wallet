@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { resolveCluster } from '../../shared/chains.ts';
 import { messageInbound } from '../../shared/inbound.ts';
 import type { AgentResult, ChainId } from '../../shared/types.ts';
+import { authorizationUrl, fallbackToExtension, postAuthorization } from './authRoute.ts';
 import { createBridge, txParams, type Bridge } from './bridge.ts';
 
 const PORT = Number(process.env.SPACEXPAD_BRIDGE_PORT || 47321);
@@ -190,8 +191,11 @@ async function main(): Promise<void> {
     },
     async ({ pairCode, agentName }) => {
       try {
-        const issued = await bridge.issueWhenRegistered(pairCode, agentName);
-        await saveDisk();
+        const remote = authorizationUrl();
+        const issued = remote
+          ? await issueOnAuthorizationService(remote, pairCode, agentName)
+          : await bridge.issueWhenRegistered(pairCode, agentName);
+        if (!remote) await saveDisk();
         return toolText({
           ...issued,
           message:
@@ -271,11 +275,19 @@ async function main(): Promise<void> {
       },
     },
     async ({ bindToken, chain, network, message, encoding }) => {
-      const denied = requireRedeemed(bindToken);
-      if (denied) return toolText(denied, true);
       if (chain !== 'solana') return toolText('Message signing currently supports Solana only. Pass chain "solana".', true);
       const invalid = networkOrError(chain, network);
       if (invalid) return toolText(invalid, true);
+      const remote = await tryAuthorization('/v1/sign-message', {
+        bindToken,
+        chain,
+        network: chosenNetwork(chain, network),
+        message,
+        encoding: encoding ?? 'utf8',
+      });
+      if (remote) return remote;
+      const denied = requireRedeemed(bindToken);
+      if (denied) return toolText(denied, true);
       const result = await bridge.request(
         messageInbound(randomBytes(8).toString('hex'), {
           bindToken,
@@ -305,12 +317,39 @@ async function answerTx(
   method: 'sign' | 'send',
   args: { bindToken: string; chain: ChainId; network?: 'mainnet' | 'testnet' | 'devnet'; kind: 'native_transfer' | 'serialized'; to?: string; amount?: string; serialized?: string },
 ) {
-  const denied = requireRedeemed(args.bindToken);
-  if (denied) return toolText(denied, true);
   const invalid = networkOrError(args.chain, args.network);
   if (invalid) return toolText(invalid, true);
+  const remote = await tryAuthorization(method === 'send' ? '/v1/send-transaction' : '/v1/sign-transaction', {
+    ...args,
+    network: chosenNetwork(args.chain, args.network),
+  });
+  if (remote) return remote;
+  const denied = requireRedeemed(args.bindToken);
+  if (denied) return toolText(denied, true);
   const result = await bridge.request(txParams(method, { ...args, network: chosenNetwork(args.chain, args.network) }));
   return toolText(result.ok ? result.result : result.error, !result.ok);
+}
+
+async function tryAuthorization(path: string, body: { bindToken: string } & Record<string, unknown>) {
+  const url = authorizationUrl();
+  if (!url) return null;
+  try {
+    const json = await postAuthorization(url, path, body, body.bindToken);
+    if (json.ok === true) return toolText(json.result);
+    if (fallbackToExtension(json.code, false) && bridge.connected()) return null;
+    return toolText(json.error || 'Authorization service rejected the request.', true);
+  } catch {
+    if (bridge.connected()) return null;
+    return toolText('The authorization service is unreachable and the extension is not connected. Nothing was signed.', true);
+  }
+}
+
+async function issueOnAuthorizationService(url: string, pairCode: string, agentName: string) {
+  const json = await postAuthorization(url, '/v1/pair/issue', { pairCode, agentName });
+  if (!json.bindToken || !json.agentId || !json.agentName) {
+    throw new Error(json.error || 'That pairing code is unknown or expired.');
+  }
+  return { bindToken: json.bindToken, agentId: json.agentId, agentName: json.agentName };
 }
 
 await main();
