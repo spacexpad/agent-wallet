@@ -365,6 +365,31 @@ describe('message signing', () => {
 });
 
 describe('bound agent auto-sign guards', () => {
+  it('does not sign solana until an address is stored, and still signs evm', async () => {
+    const emptySolana = readyStore({
+      addresses: { solana: null, evm: '0x1111111111111111111111111111111111111111' },
+    });
+    const solana = harness(emptySolana);
+    const blocked = await handleAgentRequest(solana.deps, {
+      id: 'nr',
+      method: 'send',
+      params: { bindToken: TOKEN, chain: 'solana', network: 'devnet', kind: 'native_transfer', to: 'dest', amount: '0.01' },
+    });
+    assert.equal(blocked.ok, false);
+    if (!blocked.ok) assert.match(blocked.error, /not ready/);
+    assert.equal(solana.signed.length, 0);
+
+    const evm = harness(emptySolana);
+    const signed = await handleAgentRequest(evm.deps, {
+      id: 'evm',
+      method: 'sign',
+      params: { bindToken: TOKEN, chain: 'base', kind: 'native_transfer', to: '0xabc', amount: '0.01' },
+    });
+    assert.equal(signed.ok, true);
+    assert.equal(evm.signed.length, 1);
+    assert.equal(evm.signed[0]?.chain, 'base');
+  });
+
   it('rejects an unbound token and does not sign', async () => {
     const box = harness(readyStore({ agents: [] }));
     const result = await handleAgentRequest(box.deps, {
