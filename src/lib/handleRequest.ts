@@ -134,6 +134,10 @@ async function signOrSend(
     return { ok: false, error: detail, code: 'paused' };
   }
 
+  if (cluster.chain === 'solana' && !store.addresses?.solana) {
+    return { ok: false, error: 'Wallets are not ready yet.' };
+  }
+
   const params: TxParams = {
     bindToken: inbound.params.bindToken,
     chain: cluster.chain,

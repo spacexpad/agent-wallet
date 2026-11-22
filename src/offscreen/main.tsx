@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { hasAppId } from '../../shared/store.ts';
 import type { Inbound, PendingApproval } from '../../shared/types.ts';
 import { handleAgentRequest } from '../lib/handleRequest.ts';
+import { isAuthChangedMessage, OFFSCREEN_RESYNC_GRACE_MS, OFFSCREEN_RESYNC_KEY, shouldResyncOffscreen } from '../lib/sessionSync.ts';
 import { bridgePost, ensureBridgeToken, loadStore, registerStoredPair, updateStore } from '../lib/storage.ts';
 import { PrivyGate, useVault } from '../privy/useVault.tsx';
 import { useExtensionStore } from '../popup/useStore.ts';
@@ -16,7 +17,7 @@ function Offscreen() {
   useEffect(() => {
     const listener = (message: { type?: string }, sender: chrome.runtime.MessageSender) => {
       if (sender.id !== chrome.runtime.id) return;
-      if (message?.type === 'AUTH_CHANGED') location.reload();
+      if (isAuthChangedMessage(message)) location.reload();
     };
     chrome.runtime.onMessage.addListener(listener);
     return () => chrome.runtime.onMessage.removeListener(listener);
@@ -24,13 +25,66 @@ function Offscreen() {
   if (!store || !hasAppId(store.settings)) return null;
   return (
     <PrivyGate appId={store.settings.privyAppId} clientId={store.settings.privyClientId}>
-      <BridgeLoop />
+      <VaultBridge />
     </PrivyGate>
   );
 }
 
-function BridgeLoop() {
-  const { sign, signMessage } = useVault();
+function VaultBridge() {
+  const { ready, sign, signMessage, solanaWalletCount } = useVault();
+  return (
+    <>
+      <SessionResync ready={ready} solanaWalletCount={solanaWalletCount} />
+      <BridgeLoop sign={sign} signMessage={signMessage} />
+    </>
+  );
+}
+
+function SessionResync({ ready, solanaWalletCount }: { ready: boolean; solanaWalletCount: number }) {
+  const store = useExtensionStore();
+  const countRef = useRef(solanaWalletCount);
+  countRef.current = solanaWalletCount;
+  const userId = store?.auth?.userId;
+  const solana = store?.addresses?.solana;
+  useEffect(() => {
+    let already: string | null = null;
+    try {
+      already = sessionStorage.getItem(OFFSCREEN_RESYNC_KEY);
+    } catch {
+      already = null;
+    }
+    if (
+      !shouldResyncOffscreen({
+        storedSolana: solana,
+        storedUserId: userId,
+        privyReady: ready,
+        solanaWalletCount,
+        alreadyResyncedUserId: already,
+      })
+    ) {
+      return undefined;
+    }
+    const timer = window.setTimeout(() => {
+      if (countRef.current > 0 || !userId) return;
+      try {
+        sessionStorage.setItem(OFFSCREEN_RESYNC_KEY, userId);
+      } catch {
+        // A missing sessionStorage still allows this one reload.
+      }
+      location.reload();
+    }, OFFSCREEN_RESYNC_GRACE_MS);
+    return () => window.clearTimeout(timer);
+  }, [ready, solana, solanaWalletCount, userId]);
+  return null;
+}
+
+function BridgeLoop({
+  sign,
+  signMessage,
+}: {
+  sign: ReturnType<typeof useVault>['sign'];
+  signMessage: ReturnType<typeof useVault>['signMessage'];
+}) {
   const signRef = useRef(sign);
   signRef.current = sign;
   const signMessageRef = useRef(signMessage);

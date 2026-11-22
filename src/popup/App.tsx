@@ -4,6 +4,7 @@ import { hasAppId, walletReady } from '../../shared/store.ts';
 import { messageSignCopy, t, testnetConfirmCopy } from '../../shared/i18n.ts';
 import type { Lang, Store } from '../../shared/types.ts';
 import { copyText } from '../lib/copyText.ts';
+import { completeEmailLogin, endVaultSession, notifyAuthChanged } from '../lib/sessionSync.ts';
 import { bridgePost, ensureBridgeToken, registerStoredPair, updateStore } from '../lib/storage.ts';
 import { PrivyGate, useVault } from '../privy/useVault.tsx';
 import { AssetHome } from '../ui/AssetHome.tsx';
@@ -105,11 +106,7 @@ function Session({ surface, store }: { surface: 'popup' | 'auth'; store: Store }
     if (surface !== 'auth' || !vault.authenticated) return;
     let cancel = false;
     const finish = async () => {
-      try {
-        await chrome.runtime.sendMessage({ type: 'AUTH_CHANGED' });
-      } catch {
-        // The offscreen page may not be open yet.
-      }
+      await notifyAuthChanged();
       if (!cancel) window.close();
     };
     void finish();
@@ -133,10 +130,13 @@ function Session({ surface, store }: { surface: 'popup' | 'auth'; store: Store }
       </main>
     );
   }
+  const logout = () => {
+    void endVaultSession(() => vault.logout());
+  };
   if (!walletReady(store)) {
-    return <BindGate store={store} logout={() => void vault.logout()} />;
+    return <BindGate store={store} logout={logout} />;
   }
-  return <Console store={store} logout={() => void vault.logout()} />;
+  return <Console store={store} logout={logout} />;
 }
 
 function Login({
@@ -194,7 +194,9 @@ function Login({
   async function confirm(value: string): Promise<void> {
     setPhase('confirming');
     try {
-      await vault.emailLogin.loginWithCode({ code: value });
+      await completeEmailLogin(async (code) => {
+        await vault.emailLogin.loginWithCode({ code });
+      }, value);
     } catch (reason) {
       setPhase('sent');
       setError(reason instanceof Error ? reason.message : t(lang, 'vaultError'));

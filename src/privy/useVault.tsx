@@ -18,6 +18,7 @@ import { evmCallFromSerialized } from '../../shared/evmIntent.ts';
 import { parseDecimal } from '../../shared/money.ts';
 import { embeddedPresence, missingEmbeddedWallets } from '../../shared/wallets.ts';
 import { updateStore } from '../lib/storage.ts';
+import { waitForSolanaWallet } from '../lib/walletReady.ts';
 import type { SignOutcome } from '../lib/handleRequest.ts';
 import { buildSolTransfer, decodeSerialized, encodeBase64, sendSignedSol } from '../lib/solanaTx.ts';
 import type { TxParams } from '../../shared/types.ts';
@@ -152,8 +153,7 @@ export function useVault() {
 
   const sign = async (params: TxParams, rpcUrl: string, method: 'sign' | 'send'): Promise<SignOutcome> => {
     if (params.chain === 'solana') {
-      const wallet = solanaRef.current[0];
-      if (!wallet) throw new Error('No Solana wallet is available.');
+      const wallet = await waitForSolanaWallet(() => solanaRef.current[0]);
       const bytes =
         params.kind === 'native_transfer'
           ? await buildSolTransfer(rpcUrl, wallet.address, params.to ?? '', parseDecimal(params.amount ?? '', 9))
@@ -172,13 +172,22 @@ export function useVault() {
   };
 
   const signMessage = async (input: { message: Uint8Array }): Promise<{ signature: Uint8Array; publicKey: string }> => {
-    const wallet = solanaRef.current[0];
-    if (!wallet) throw new Error('No Solana wallet is available.');
+    const wallet = await waitForSolanaWallet(() => solanaRef.current[0]);
     const signed = await signMessageRef.current({ message: input.message, wallet });
     return { signature: signed.signature, publicKey: wallet.address };
   };
 
-  return { ready, authenticated, user, emailLogin, googleLogin, logout, sign, signMessage };
+  return {
+    ready,
+    authenticated,
+    user,
+    emailLogin,
+    googleLogin,
+    logout,
+    sign,
+    signMessage,
+    solanaWalletCount: solana.wallets.length,
+  };
 }
 
 async function signEvm(
