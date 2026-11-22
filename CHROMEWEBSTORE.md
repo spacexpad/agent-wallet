@@ -1,83 +1,180 @@
-# Chrome Web Store notes
+# Chrome Web Store submission
 
-Draft for a later submission. Do not upload this build until the listing, privacy policy, and Privy production app are reviewed. Publishing assigns a new extension ID. The unpacked ID pinned by `manifest.json` is `kgjgdglopjkfahcipgkpnnkenjnoineo`. The development Privy App ID `cmwqh29x000hj0glajlwjht0s` is public and is already in `config.example.json`. Do not add an app secret to the package. After publish, add the new `chrome-extension://` origin and `https://<new-id>.chromiumapp.org/` redirect in the Privy dashboard.
+This is the copy source for the Chrome Developer Dashboard. Publishing assigns a new extension ID. The unpacked ID pinned by the `key` in `public/manifest.json` stays `kgjgdglopjkfahcipgkpnnkenjnoineo`. Do not edit that `key`. The store zip from `npm run pack:store` omits `key` so Chrome assigns the store ID. The source manifest is unchanged.
 
-## Listing
+Privy App ID (public): `cmwqh29x000hj0glajlwjht0s`
 
-**Name:** SpaceXpad agent wallet
+After the dashboard shows the new extension ID, and before you publish, add both of these on that Privy app:
 
-**Summary:** Keyless multi-chain wallet for agents. Privy holds the keys. You set the risk policy.
+- Allowed origin: `chrome-extension://<new-id>/`
+- Allowed OAuth redirect: `https://<new-id>.chromiumapp.org/`
+
+Google login fails if those two are missing. You can leave the unpacked origin in place for local development. Do not put a Privy App Secret, an authorization private key, a bridge token, or a PAIR_CODE in the dashboard text, the zip, or a screenshot.
+
+The SpaceXpad website is still on Solana devnet. This extension shows mainnet balances by default, and agent tools use mainnet unless the request names devnet or testnet. Do not describe the launchpad as a live mainnet product.
+
+Privacy URL to enter after it is hosted: `https://spacexpad.xyz/agent-wallet/privacy`
+
+Host `docs/agent-wallet/privacy.html` at that path only. Do not replace `/`, `/skill`, `/skill.md`, or `/agents`. This repo has no skill Worker. `worker/` is the authorization service at `https://spacexpad-agent-wallet-auth.timmy2048.workers.dev` and is not the site. Do not deploy it from this change.
+
+## Dashboard fields
+
+**Item name:** SpaceXpad Agent Wallet
+
+The manifest name is `SpaceXpad agent wallet`. Either string is accurate. The popup wordmark is `SpaceXpad Agent Wallet`.
+
+**Summary (132 characters, also the manifest description):**
+
+```
+Keyless multi-chain wallet for agents. Privy holds the keys. You set the risk policy.
+```
 
 **Category:** Productivity
 
-**Language:** English. The popup also offers 简体中文 and 繁體中文.
+**Language:** English
 
-**Description:**
+The popup also offers 简体中文 and 繁體中文. The store listing language is English.
 
-SpaceXpad agent wallet is a keyless vault for Solana, Ethereum, Base, and BNB Chain, for the launchpad at https://spacexpad.xyz/. Setup for this extension is reserved at https://spacexpad.xyz/agent-wallet/skill.md and that file is not published. The live launchpad paths (`/`, `/skill`, `/skill.md`, `/agents`) are separate. You sign in with Gmail or an email code. Privy creates the wallets and signs. You never see a seed phrase.
+**Detailed description:**
 
-A paired agent on your computer can read balances, request a signature, or submit a transaction through a local MCP server on 127.0.0.1. The wallet shows mainnet balances. Agent calls use mainnet unless the request explicitly names a testnet or devnet. After a binding succeeds, that agent signs and sends without a confirmation click. A revoked binding or the kill switch still blocks signing.
+```
+SpaceXpad Agent Wallet is a keyless wallet for Solana, Ethereum, Base, and BNB Chain. You sign in with email or Google. Privy creates the embedded wallets and holds the keys. The extension never asks for a seed phrase and never shows one.
 
-You can leave signing uncapped, or set a single-transaction USD limit and a daily USD limit. An optional whitelist restricts destinations. A kill switch pauses every agent. The extension refuses a signature it cannot price when a limit is on, and it never reports a transaction hash it did not receive.
+The popup shows mainnet balances by default. A paired agent can read balances, request a signature, or submit a transaction. Those tools use mainnet unless the request explicitly names devnet or testnet. The SpaceXpad website is a separate product and is still on Solana devnet. This extension does not make that site a mainnet launchpad.
+
+Pair an agent by copying a short install prompt from the extension. The prompt includes a PAIR_CODE that expires in 30 minutes. Install the MCP server on the agent's own device first. Use your computer only when that agent has no device of its own. The extension adopts its local bridge token by itself. You are not asked to paste a bridge token into Settings.
+
+Offline signing is on by default after you sign in and an agent is bound. That agent can sign and send with no confirmation popup, including while Chrome is closed. You can turn offline signing off. An unbound, revoked, or paused request is rejected and nothing is signed.
+
+The default risk policy is full access. An empty destination whitelist does not block signing. You can turn on a single-transaction USD limit, a daily USD limit, and a whitelist. The kill switch pauses every agent. If a limit is on and a price is missing, the extension refuses the signature. It does not report a transaction hash it did not receive.
+
+Agent setup: https://spacexpad.xyz/agent-wallet/skill.md
+Privacy: https://spacexpad.xyz/agent-wallet/privacy
+```
 
 ## Single purpose
 
-Give the signed-in user a Privy embedded wallet and a local bridge so a paired agent can read balances and request signatures or sends, under a risk policy stored in the extension.
+```
+Give the signed-in user Privy embedded wallets for Solana, Ethereum, Base, and BNB Chain, and let a paired agent read balances and request signatures or sends under the risk policy stored in this extension.
+```
 
-## Permissions
+## Permission justifications
 
-| Permission | Why |
+There is no `tabs`, `history`, `<all_urls>`, or content script.
+
+| Permission | Plain-English justification |
 | --- | --- |
-| `storage` | Language, username, risk policy, bound agents, activity, and cached balances. |
-| `identity` | Gmail OAuth redirect for Privy (`https://<id>.chromiumapp.org/`). |
-| `offscreen` | Keep the Privy session and the local agent bridge alive while the toolbar popup is closed, using extension local storage. |
-| `alarms` | Recreate that offscreen document if Chrome suspends it. |
+| `storage` | Saves this browser's language, display name, risk policy, bound agents, recent agent activity, cached balances, the loopback bridge token, and a local owner key for the authorization service. The Privy SDK also keeps the login session in extension local storage. Nothing here is a seed or an exported private key. |
+| `identity` | Google sign-in is Privy's OAuth. Chrome only completes that redirect through `chrome.identity`, at `https://<extension-id>.chromiumapp.org/`. The extension does not read Google contacts or any other identity profile. |
+| `offscreen` | An offscreen document keeps the Privy session and the local agent bridge available after the toolbar popup closes. Chrome's offscreen reason is local storage. |
+| `alarms` | A one-minute alarm recreates that offscreen document if Chrome suspends it, so a paired agent can still reach an open extension. |
+| `clipboardWrite` | Copy writes either a public wallet address or the install prompt (including its 30-minute PAIR_CODE) to the clipboard when you click the control. The extension does not read the clipboard. |
 
-`action` is declared because the extension uses a toolbar popup.
+`action` is the toolbar popup (`popup.html`). It is not an optional permission.
 
-## Host permissions
+## Host permission justifications
 
-| Host | Why |
+| Host | Why it is required |
 | --- | --- |
-| `https://auth.privy.io/*`, `https://api.privy.io/*`, `https://*.privy.io/*`, `https://*.rpc.privy.systems/*` | Privy login and embedded-wallet signing. |
-| PublicNode and public Solana RPC hosts | Mainnet balance reads by default, plus a testnet or devnet read or broadcast only when that cluster was explicitly requested. |
-| Blockscout hosts for Ethereum, Base, and BNB Chain, including Sepolia, Base Sepolia, and BSC testnet | Fungible token lists. |
-| `https://coins.llama.fi/*` | USD prices for display and for limit checks. |
-| `http://127.0.0.1:47321/*` | Local MCP bridge. It is not a remote server. |
+| `https://auth.privy.io/*` | Privy login iframe and session. This is the remote frame disclosed below. |
+| `https://api.privy.io/*` | Privy API for the signed-in user and embedded-wallet creation. |
+| `https://*.privy.io/*` | The Privy SDK also calls other `privy.io` hosts while the iframe and embedded wallets start. Listing only `auth` and `api` is not enough for that client. The extension does not use this pattern to browse the web. |
+| `https://*.rpc.privy.systems/*` | Embedded-wallet RPC. The SDK uses chain hosts such as `solana-mainnet.rpc.privy.systems` and `solana-devnet.rpc.privy.systems`, plus the matching EVM hosts. |
+| `https://solana-rpc.publicnode.com/*` | Solana mainnet balance and transaction broadcast. The public Solana Labs mainnet RPC rejects a browser Origin, so the extension does not call it. |
+| `https://api.devnet.solana.com/*` | Solana devnet balance or broadcast only when a request explicitly names devnet. |
+| `https://ethereum-rpc.publicnode.com/*` | Ethereum mainnet balance and broadcast. |
+| `https://ethereum-sepolia-rpc.publicnode.com/*` | Ethereum Sepolia, only when a request explicitly names testnet. |
+| `https://base-rpc.publicnode.com/*` | Base mainnet balance and broadcast. |
+| `https://base-sepolia-rpc.publicnode.com/*` | Base Sepolia, only when a request explicitly names testnet. |
+| `https://bsc-rpc.publicnode.com/*` | BNB Chain mainnet balance and broadcast. |
+| `https://bsc-testnet-rpc.publicnode.com/*` | BNB Chain testnet, only when a request explicitly names testnet. |
+| `https://eth.blockscout.com/*` | Ethereum mainnet fungible-token list for the public address. |
+| `https://eth-sepolia.blockscout.com/*` | Ethereum Sepolia token list, only after an explicit testnet request. |
+| `https://base.blockscout.com/*` | Base mainnet fungible-token list. |
+| `https://base-sepolia.blockscout.com/*` | Base Sepolia token list, only after an explicit testnet request. |
+| `https://lite-api.jup.ag/*` | Jupiter public holdings. Used only as a fallback when a Solana mainnet token-account read is blocked. It receives the Solana address. |
+| `https://api.binplorer.com/*` | BNB Chain fungible-token list. Blockscout's BNB API is not used, because `bsc.blockscout.com` answers 404. The request uses Binplorer's published `apiKey=freekey` query parameter. That value is not a SpaceXpad or Privy secret. |
+| `https://coins.llama.fi/*` | DefiLlama prices for a USD figure on screen and for a USD limit check. The request sends a public price id or token contract, not the user's wallet address. |
+| `http://127.0.0.1:47321/*` | Local MCP bridge on the same computer. It is not a remote server. The extension reads the bridge token from loopback and does not ask you to paste it into Settings. |
+| `https://spacexpad-agent-wallet-auth.timmy2048.workers.dev/*` | Authorization service for pairing, the offline grant, policy updates, revoke, and sign or send while the extension is closed. This replaced `https://*.workers.dev/*`. No other workers.dev host is called. |
 
-No `tabs`, `history`, `<all_urls>`, or content scripts.
+Removed because the extension never requests them: `https://api.mainnet-beta.solana.com/*`, `https://api.mainnet.solana.com/*`, `https://bsc.blockscout.com/*`, and `https://bsc-testnet.blockscout.com/*`.
 
 ## Remote code
 
-The package does not load remote extension scripts. CAPTCHA libraries are stubbed. Telegram login is not enabled, and the Telegram loader URL is stripped from the bundle. Stripe onramp is stubbed so its hosted script is not shipped. Privy still runs its wallet iframe from `auth.privy.io`, which is the key-holding component and is called out here for review.
+Extension pages use `script-src 'self' 'wasm-unsafe-eval'`. The package does not execute a remotely hosted extension script.
 
-Before upload, confirm the dashboard has CAPTCHA and Telegram disabled, and search the zip for `telegram-login.js`, `challenges.cloudflare.com`, `js.hcaptcha.com`, and `crypto-js.stripe.com`.
+Privy still runs its wallet iframe from `https://auth.privy.io`. That frame is the key-holding component. Declare it as remote code in the dashboard: the extension shows Privy's embedded-wallet iframe so Privy can hold the keys and sign. The extension does not receive the seed.
 
-## Privacy
+These loaders are absent from the package. The build stubs the packages and rewrites leftover URLs:
 
-- The extension does not sell user data.
-- It does not use data for advertising or creditworthiness.
-- Authentication and wallet custody go to Privy.
-- Balance and price lookups go to the RPC, Blockscout, and DefiLlama hosts above.
-- Agent requests stay on localhost.
-- Draft policy: `PRIVACY.md`. Replace the placeholder operator contact before submission.
+- Telegram login (`telegram-login.js`) is not enabled.
+- Cloudflare Turnstile (`challenges.cloudflare.com`) is not loaded.
+- hCaptcha (`js.hcaptcha.com`) is not loaded.
+- Stripe (`crypto-js.stripe.com`, `js.stripe.com`, `issuing-key.stripe.com`) is not loaded.
 
-Data-use answers for the form:
+`npm run pack:store` searches the zip for those strings, for private-key material, and for the unpacked manifest key. Do not upload a zip that fails that scan. In the Privy dashboard, keep CAPTCHA and Telegram login disabled for app `cmwqh29x000hj0glajlwjht0s`.
 
-- Personally identifiable information: email address, via Privy login.
-- Authentication information: Privy session, stored by the Privy SDK in extension local storage.
-- Financial and payment information: public wallet addresses, balances, and transaction requests.
-- Personal communications: none.
-- Location, web history, user activity on the web: none.
+## Privacy and data-use form
 
-## Assets checklist
+Policy URL: `https://spacexpad.xyz/agent-wallet/privacy`
 
-- [x] `icons/icon-16.png`, `icons/icon-32.png`, `icons/icon-48.png`, `icons/icon-128.png` from `assets/spacexpad-x-avatar.png` via `scripts/gen-icons.mjs`. The script fails if that file is missing. It does not read a rocket SVG.
-- [ ] 1280×800 screenshot of the sign-in screen
-- [ ] 1280×800 screenshot of the console with the address popover open
-- [ ] 1280×800 screenshot of Settings (language, limits, kill switch)
-- [ ] Optional small promo tile, 440×280
-- [ ] Privacy policy URL once `PRIVACY.md` is hosted
-- [ ] Confirm the production Privy app ID, allowed origin, and OAuth redirect match the published extension ID
+The page to publish is `docs/agent-wallet/privacy.html`. `PRIVACY.md` is the same text. It is not legal advice.
 
-Do not submit screenshots that show another person's balances or a live mainnet key.
+Certifications to check:
+
+- I do not sell or transfer user data to third parties, outside of the approved use cases.
+- I do not use or transfer user data for purposes that are unrelated to my item's single purpose.
+- I do not use or transfer user data to determine creditworthiness or for lending purposes.
+
+| Data type | Collected? | What, and where it goes |
+| --- | --- | --- |
+| Personally identifiable information | Yes | Email address, and the Google account when you choose Google. Privy collects it for login. The extension stores the email and Privy user id in `chrome.storage.local` to label this profile. |
+| Health information | No | |
+| Financial and payment information | Yes | Public wallet addresses, balances, and the transaction or message an agent asks to sign or send. Used for the wallet. Sent to the RPC, Blockscout, Jupiter, or Binplorer hosts above when that read or broadcast runs, and to the authorization Worker when offline signing runs. |
+| Authentication information | Yes | Privy session in extension local storage. A local owner key and binding token authorize the Worker. These are not wallet private keys. |
+| Personal communications | No | |
+| Location | No | |
+| Web history | No | |
+| User activity | Yes, locally | The extension stores recent agent actions (method, chain, detail, and a hash when one was returned). It does not read browsing history or page content. |
+| Website content | No | |
+
+Data is not sold. It is not used for advertising. It is not used for credit. Sharing is only with the processors named in the privacy policy, for login, balances, prices, and signing.
+
+## Assets
+
+- [x] Icons `public/icons/icon-16.png`, `icon-32.png`, `icon-48.png`, `icon-128.png`, from `assets/spacexpad-x-avatar.png`
+- [x] `store/screenshots/sign-in.png` — 1280×800, sign-in screen
+- [x] `store/screenshots/assets.png` — 1280×800, assets with the address popover open
+- [x] `store/screenshots/settings.png` — 1280×800, language, full access, offline signing, and the kill switch
+- [x] `store/screenshots/promo-440x280.png` — optional small promo tile
+- [ ] Privacy policy live at `https://spacexpad.xyz/agent-wallet/privacy` (coordinator hosts the HTML; do not deploy from this repo)
+- [ ] Privy origin and redirect updated to the new extension ID before publish
+
+Screenshots use fictional demo data. They do not show a real balance, a PAIR_CODE, a bridge token, or a secret. In the product, language and risk policy are Settings pages, and offline signing is on the Agent tab. The settings image places those real controls in one popup so the listing shows them together.
+
+## Produce the zip
+
+```bash
+npm run pack:store
+```
+
+That builds, copies only `dist`, deletes `key` from the zip's `manifest.json`, and writes `store/spacexpad-agent-wallet-0.1.0.zip`. The zip excludes `.git/`, `node_modules/`, `.env`, `CHROMEWEBSTORE.md`, and source maps. Upload that zip. Do not upload the repository, and do not upload a `dist` folder that still contains `key`.
+
+`public/manifest.json` must still contain `key` after packaging. The unpacked ID stays `kgjgdglopjkfahcipgkpnnkenjnoineo`.
+
+## Version 0.1.0
+
+First release. Keyless Solana, Ethereum, Base, and BNB Chain wallets. Privy holds the keys. Mainnet balances by default. Pair an agent with a 30-minute code. Offline signing is on by default for a bound agent, including while Chrome is closed. Full access is the default policy. A kill switch, optional USD limits, and an optional whitelist are included.
+
+## After upload
+
+1. Upload `store/spacexpad-agent-wallet-0.1.0.zip`.
+2. Paste the name, summary, category, language, description, and single purpose from this file.
+3. Paste one justification for every permission and every host above.
+4. Disclose the `auth.privy.io` iframe. State that CAPTCHA, Telegram, and Stripe loaders are not in the package.
+5. Enter the privacy URL and the data-use answers above.
+6. Upload the three 1280×800 screenshots. The promo tile is optional.
+7. When Chrome assigns the store extension ID, add `chrome-extension://<new-id>/` and `https://<new-id>.chromiumapp.org/` on Privy app `cmwqh29x000hj0glajlwjht0s` before you publish. Otherwise Google login fails.
+8. Confirm email and Google login are on, and CAPTCHA and Telegram login are off.
+9. Install the store build and sign in with Google before you release it to users.

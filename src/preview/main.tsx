@@ -8,19 +8,22 @@ import type { Lang, Snapshot, Store } from '../../shared/types.ts';
 import { defaultStore } from '../../shared/store.ts';
 import { AssetHome } from '../ui/AssetHome.tsx';
 import { brandIcon } from '../ui/brand.ts';
-import { BindScreen } from '../ui/BindScreen.tsx';
+import { BindScreen, LanguageChoices } from '../ui/BindScreen.tsx';
 import { LoginScreen } from '../ui/LoginScreen.tsx';
 import { SettingsPanel } from '../ui/SettingsPanel.tsx';
 import '../popup/styles.css';
+import './store-frame.css';
 
 document.documentElement.classList.add('preview');
 
 const params = new URLSearchParams(location.search);
+const framed = params.get('frame') === 'store';
+if (framed) document.documentElement.classList.add('store-shot');
 const state = params.get('state') ?? 'login';
 const lang = (params.get('lang') ?? 'zh-CN') as Lang;
 
-const solana = '9f2kRaaaaaaaaaaaaaaaaaaLm4uC';
-const evm = '0xA41c1111111111111111111111111111111192eB';
+const solana = 'So1aNaDemo11111111111111111111111111111111';
+const evm = '0xDeaD00000000000000000000000000000000b0b0';
 
 function snap(chain: Snapshot['chain'], amount: bigint, extra: Snapshot['assets'] = []): Snapshot {
   return {
@@ -37,8 +40,8 @@ function snap(chain: Snapshot['chain'], amount: bigint, extra: Snapshot['assets'
 const usdc = {
   symbol: 'USDC',
   name: 'USD Coin',
-  amount: '0',
-  raw: '1',
+  amount: '80',
+  raw: '80000000',
   decimals: 6,
   contract: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
   native: false,
@@ -46,7 +49,7 @@ const usdc = {
 };
 
 const ready: Snapshot[] = [
-  snap('solana', 0n, [usdc]),
+  snap('solana', 2_500_000_000n, [usdc]),
   snap('ethereum', 0n),
   snap('base', 0n, [
     {
@@ -87,6 +90,7 @@ const labels: Record<string, string> = {
   loading: 'Fixture: balances still loading. Amounts are hidden.',
   bind: 'Fixture: first-run bind gate. Assets are not reachable.',
   settings: 'Fixture: settings. No bridge token field.',
+  controls: 'Fixture: language, full access, offline signing, and the kill switch. Demo only.',
   approval: 'Fixture: test-network send waiting for confirmation.',
 };
 
@@ -95,8 +99,23 @@ if (label) label.textContent = labels[state] ?? `Fixture: ${state}`;
 
 function Preview() {
   const [tab, setTab] = useState<'wallet' | 'agent' | 'settings'>(
-    state === 'settings' ? 'settings' : state === 'agent' ? 'agent' : 'wallet',
+    state === 'settings' || state === 'controls' ? 'settings' : state === 'agent' ? 'agent' : 'wallet',
   );
+  const screen = screenFor(tab);
+  if (!framed) return screen;
+  return (
+    <div className="store-stage">
+      <div className="store-copy">
+        <img src={brandIcon(128)} alt="" />
+        <p className="store-kicker">SpaceXpad</p>
+        <h2>Agent Wallet</h2>
+        <p>{frameCaption(state)}</p>
+      </div>
+      <div className="store-popup">{screen}</div>
+    </div>
+  );
+
+  function screenFor(current: 'wallet' | 'agent' | 'settings') {
   if (state === 'login') {
     return (
       <LoginScreen
@@ -137,6 +156,7 @@ function Preview() {
       </main>
     );
   }
+  if (state === 'controls') return <ControlsPreview lang={lang} />;
   const snapshots = state === 'loading' ? [] : state === 'error' ? errored : ready;
   return (
     <main className="shell">
@@ -145,7 +165,7 @@ function Preview() {
           <img src={brandIcon(32)} alt="" />
           <h1 className="brand">{t(lang, 'mark')}</h1>
         </div>
-        <p className="account-name">@timmy</p>
+        <p className="account-name">@nova</p>
       </header>
       {state === 'approval' ? (
         <div className="banner">
@@ -161,7 +181,7 @@ function Preview() {
         </div>
       ) : null}
       <div className="body">
-        {tab === 'wallet' ? (
+        {current === 'wallet' ? (
           <AssetHome
             lang={lang}
             solana={state === 'loading' ? null : solana}
@@ -174,15 +194,66 @@ function Preview() {
             forceOpen={state === 'picker'}
           />
         ) : null}
-        {tab === 'settings' ? <SettingsPreview lang={lang} /> : null}
+        {current === 'settings' ? <SettingsPreview lang={lang} /> : null}
       </div>
       <nav className="dock" aria-label={t(lang, 'primaryNav')}>
         <div className="dock-pill">
           {(['wallet', 'agent', 'settings'] as const).map((id) => (
-            <button key={id} type="button" aria-current={tab === id ? 'page' : undefined} onClick={() => setTab(id)}>
+            <button key={id} type="button" aria-current={current === id ? 'page' : undefined} onClick={() => setTab(id)}>
               {t(lang, id === 'wallet' ? 'navWallet' : id === 'agent' ? 'navAgent' : 'navSettings')}
             </button>
           ))}
+        </div>
+      </nav>
+    </main>
+  );
+  }
+}
+
+function frameCaption(which: string): string {
+  if (which === 'login') return 'Sign in with email or Google. Privy holds the keys. There is no seed phrase.';
+  if (which === 'controls') return 'Language, full access, offline signing, and the kill switch. Demo settings only.';
+  return 'Mainnet balances for a demo wallet. Open the list to copy a public address.';
+}
+
+function ControlsPreview({ lang: language }: { lang: Lang }) {
+  return (
+    <main className="shell">
+      <header className="account-head">
+        <div className="top">
+          <img src={brandIcon(32)} alt="" />
+          <h1 className="brand">{t(language, 'mark')}</h1>
+        </div>
+        <p className="account-name">@nova</p>
+      </header>
+      <div className="body">
+        <p className="label">{t(language, 'language')}</p>
+        <LanguageChoices lang={language} onLanguage={() => undefined} />
+        <p className="label">{t(language, 'risk')}</p>
+        <div className="choices" role="group" aria-label={t(language, 'risk')}>
+          <button type="button" aria-pressed="true">
+            {t(language, 'fullAccess')}
+          </button>
+          <button type="button" aria-pressed="false">
+            {t(language, 'useLimits')}
+          </button>
+        </div>
+        <p className="note">{t(language, 'fullAccessHelp')}</p>
+        <button type="button" className="secondary">
+          {t(language, 'pause')}
+        </button>
+        <p className="note">{t(language, 'offlineGranted')}</p>
+        <button type="button" className="quiet-button">
+          {t(language, 'offlineTurnOff')}
+        </button>
+      </div>
+      <nav className="dock" aria-label={t(language, 'primaryNav')}>
+        <div className="dock-pill">
+          <button type="button">{t(language, 'navWallet')}</button>
+          <button type="button">{t(language, 'navAgent')}</button>
+          <button type="button" aria-current="page">
+            {t(language, 'navSettings')}
+          </button>
         </div>
       </nav>
     </main>

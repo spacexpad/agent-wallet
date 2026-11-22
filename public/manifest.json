@@ -30,8 +30,6 @@
     "https://api.privy.io/*",
     "https://*.privy.io/*",
     "https://*.rpc.privy.systems/*",
-    "https://api.mainnet-beta.solana.com/*",
-    "https://api.mainnet.solana.com/*",
     "https://api.devnet.solana.com/*",
     "https://solana-rpc.publicnode.com/*",
     "https://lite-api.jup.ag/*",
@@ -46,11 +44,9 @@
     "https://eth-sepolia.blockscout.com/*",
     "https://base.blockscout.com/*",
     "https://base-sepolia.blockscout.com/*",
-    "https://bsc.blockscout.com/*",
-    "https://bsc-testnet.blockscout.com/*",
     "https://coins.llama.fi/*",
     "http://127.0.0.1:47321/*",
-    "https://*.workers.dev/*"
+    "https://spacexpad-agent-wallet-auth.timmy2048.workers.dev/*"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; frame-ancestors 'none';"

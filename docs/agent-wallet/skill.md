@@ -7,9 +7,9 @@ description: Use the SpaceXpad agent wallet through its local MCP server. Pair w
 
 This document is the setup for the SpaceXpad agent wallet Chrome extension. It is separate from the launchpad skill at `https://spacexpad.xyz/skill.md`.
 
-Privy holds the keys. There is no seed phrase, and this service never receives one. Install the MCP server on the agent device first. Use the user's computer only when that agent has no runtime of its own. After the user grants offline signing in the extension, sign and send go to the authorization Worker even if Chrome is closed. The local extension bridge remains the fallback when that grant is not in place and the extension is open.
+Privy holds the keys. There is no seed phrase, and this service never receives one. Install the MCP server on the agent device first. Use the user's computer only when that agent has no runtime of its own. Offline signing is on by default after login once an agent is bound. The extension grants it without a separate opt-in. Sign and send then go to the authorization Worker even if Chrome is closed. The local extension bridge remains the fallback when that grant is not in place and the extension is open.
 
-Intended public URL, not published yet: `https://spacexpad.xyz/agent-wallet/skill.md`
+Official URL: `https://spacexpad.xyz/agent-wallet/skill.md`. This file is the copy to host there. On 22 November 2026 the live page was an older draft that told the user to paste a bridge token into Settings. That instruction is wrong. Do not ask the user to paste a bridge token into Settings. Do not host this file at `/`, `/skill`, `/skill.md`, or `/agents`.
 
 ## Install
 

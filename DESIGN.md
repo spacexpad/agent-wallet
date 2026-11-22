@@ -52,4 +52,4 @@ The toolbar icon is the SpaceXpad X avatar at `assets/spacexpad-x-avatar.png`, a
 
 ## Site
 
-The launchpad is [https://spacexpad.xyz/](https://spacexpad.xyz/). Its live prompts and docs stay on `/`, `/skill`, `/skill.md`, and `/agents`. This extension reserves [https://spacexpad.xyz/agent-wallet/skill.md](https://spacexpad.xyz/agent-wallet/skill.md), which returned 404 on 21 November 2026 and was not deployed. That file is separate from `/skill` and `/skill.md`. Pair codes and bridge tokens are not written into that URL or into pages that would be indexed.
+The launchpad is [https://spacexpad.xyz/](https://spacexpad.xyz/). Its live prompts and docs stay on `/`, `/skill`, `/skill.md`, and `/agents`. This extension's setup document is [https://spacexpad.xyz/agent-wallet/skill.md](https://spacexpad.xyz/agent-wallet/skill.md), and the privacy page to host is [https://spacexpad.xyz/agent-wallet/privacy](https://spacexpad.xyz/agent-wallet/privacy). Those paths are separate from `/skill` and `/skill.md`. The site is still on Solana devnet. Pair codes and bridge tokens are not written into those URLs.

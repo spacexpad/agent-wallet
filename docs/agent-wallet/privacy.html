@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy policy — SpaceXpad Agent Wallet</title>
+    <meta name="description" content="Privacy policy for the SpaceXpad Agent Wallet Chrome extension." />
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #14182b;
+        --mute: #3d4663;
+        --line: #d5dbe8;
+        --paper: #f7f8fb;
+        --card: #ffffff;
+        --accent: #0369a1;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font: 16px/1.6 system-ui, sans-serif;
+      }
+      main {
+        max-width: 42rem;
+        margin: 0 auto;
+        padding: 48px 20px 72px;
+      }
+      header {
+        margin-bottom: 28px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--line);
+      }
+      p, li { color: var(--ink); }
+      .meta { color: var(--mute); margin: 0.2rem 0; }
+      h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; }
+      h2 { font-size: 1.25rem; margin: 2rem 0 0.5rem; }
+      a { color: var(--accent); }
+      ul { padding-left: 1.2rem; }
+      code { font-family: ui-monospace, monospace; font-size: 0.92em; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Privacy policy</h1>
+        <p class="meta">SpaceXpad Agent Wallet</p>
+        <p class="meta">Operator: SpaceXpad</p>
+        <p class="meta">Contact: <a href="mailto:hello@spacexpad.xyz">hello@spacexpad.xyz</a></p>
+        <p class="meta">Last updated: 22 November 2026</p>
+      </header>
+      <p>
+        This policy describes the SpaceXpad Agent Wallet Chrome extension. It is not legal advice.
+        Host this page at <code>https://spacexpad.xyz/agent-wallet/privacy</code> only. It does not replace
+        <code>/</code>, <code>/skill</code>, <code>/skill.md</code>, or <code>/agents</code>.
+      </p>
+      <p>
+        The extension lets you sign in, see addresses and balances for Solana, Ethereum, Base, and BNB Chain, and let a
+        paired agent request balances, signatures, and sends under a risk policy you control. The popup shows mainnet
+        balances by default. Agent tools use mainnet unless the request explicitly names devnet or testnet. The
+        SpaceXpad website is a separate product and is still on Solana devnet.
+      </p>
+
+      <h2>Who holds the keys</h2>
+      <p>
+        Privy creates the embedded wallets and holds the key shares. The extension does not ask for a seed phrase, does
+        not display one, and does not write an exported private key to extension storage. Signing inside Chrome goes
+        through the Privy SDK. Signing while the extension is closed goes through Privy's wallet API, called by the
+        authorization service described below. That service does not receive an exported private key or the seed. Its
+        Privy App Secret and authorization private key stay in the service's own secret store. They are not in the
+        extension.
+      </p>
+
+      <h2>Data stored on this device</h2>
+      <p>The extension stores the following in <code>chrome.storage.local</code> on your computer:</p>
+      <ul>
+        <li>The public Privy App ID, and an optional Privy client ID if you add one</li>
+        <li>The authorization service URL and the public key quorum id</li>
+        <li>A local owner key that lets this browser update the authorization service. It is not a wallet private key</li>
+        <li>The loopback bridge token, which the extension reads from the local MCP server. You are not asked to paste it into Settings</li>
+        <li>Your email address and Privy user id after you sign in</li>
+        <li>Display name, language, and risk-policy settings</li>
+        <li>Bound agent names and binding tokens</li>
+        <li>A PAIR_CODE while a pairing is in progress. It expires in 30 minutes</li>
+        <li>Wallet addresses after login</li>
+        <li>Recent agent activity and, when a USD limit applies, how much has been sent today</li>
+        <li>Cached balances. The popup reads mainnet after login. A testnet or devnet snapshot is stored only after an explicit request</li>
+      </ul>
+      <p>
+        The Privy SDK also stores its session in extension local storage. That data stays in this browser profile until
+        you remove the extension, log out, or clear extension storage.
+      </p>
+
+      <h2>Data sent off the device</h2>
+      <p>When you use the extension, it contacts:</p>
+      <ul>
+        <li><strong>Privy</strong> (<code>auth.privy.io</code>, <code>api.privy.io</code>, other <code>privy.io</code> hosts the SDK uses, and <code>rpc.privy.systems</code>) to sign you in with email or Google, to create the embedded wallets, and to sign. Your email address, or your Google account if you choose Google, is handled by Privy. Privy's own privacy policy applies to that account.</li>
+        <li><strong>Public RPC providers</strong> to read balances and submit transactions. Defaults are PublicNode for Solana mainnet, Ethereum, Base, and BNB Chain, and <code>api.devnet.solana.com</code> for Solana devnet. A testnet or devnet host is used only when the request names that cluster. These calls send the public address and, when you broadcast, the signed transaction.</li>
+        <li><strong>Blockscout</strong> (<code>eth.blockscout.com</code>, <code>base.blockscout.com</code>, and the Sepolia hosts for those chains) to list fungible tokens for the public EVM address.</li>
+        <li><strong>Jupiter</strong> (<code>lite-api.jup.ag</code>) with the Solana address, only when the Solana token-account read is blocked and the extension falls back to Jupiter's public holdings API.</li>
+        <li><strong>Binplorer</strong> (<code>api.binplorer.com</code>) with the BNB Chain address to list fungible tokens. The request includes Binplorer's published <code>apiKey=freekey</code> parameter. That value is not a SpaceXpad secret. BNB Chain testnet token lists are not requested.</li>
+        <li><strong>DefiLlama</strong> (<code>coins.llama.fi</code>) to price an asset when a USD value can be shown or a limit needs a price. The request sends a public price id or token contract, not your wallet address.</li>
+        <li><strong>The authorization service</strong> at <code>https://spacexpad-agent-wallet-auth.timmy2048.workers.dev</code> for pairing, binding, the offline grant, policy updates, revoke, and sign or send when the extension is closed. That call can include the PAIR_CODE, binding token, local owner key, Privy user id, public addresses, Privy wallet ids, the risk policy, and the message or transaction to sign or send. It does not include an exported private key or the seed.</li>
+        <li><strong>The local agent bridge</strong> at <code>127.0.0.1</code> only, so an MCP server on that computer can request balances, signatures, and sends. Install the MCP server on the agent's own device first. Use your computer only when that agent has no device of its own.</li>
+      </ul>
+      <p>
+        The extension does not include analytics or advertising, and it does not run a SpaceXpad account server.
+        Copy writes a public address or the install prompt when you click copy. The extension does not read the
+        clipboard. It does not use tabs, history, or content scripts, and it does not read your browsing.
+      </p>
+
+      <h2>Agents and offline signing</h2>
+      <p>
+        You copy a short install prompt and a PAIR_CODE from the extension. The code expires in 30 minutes. You paste
+        the binding token the agent returns into the bind screen. You are not asked to paste a bridge token into
+        Settings.
+      </p>
+      <p>
+        Offline signing is on by default after you sign in and an agent is bound. The extension grants it without a
+        separate opt-in. A bound agent then signs and sends with no confirmation popup, including while Chrome is
+        closed. You can turn offline signing off. An unbound request, a revoked binding, or a request while the kill
+        switch is on is rejected and nothing is signed.
+      </p>
+      <p>
+        The default policy is full access. An empty whitelist does not block. A whitelist or a USD limit applies only
+        after you turn it on. The kill switch pauses every agent, including requests that reach the authorization
+        service while Chrome is closed.
+      </p>
+
+      <h2>Google and email sign-in</h2>
+      <p>
+        Google login is Privy's Google OAuth. The extension opens it in a separate window because Chrome does not
+        complete that redirect inside the toolbar popup. Email login uses a one-time code. There is no separate
+        SpaceXpad password.
+      </p>
+
+      <h2>Children</h2>
+      <p>The extension is not directed at children.</p>
+
+      <h2>Retention and deletion</h2>
+      <p>
+        Local data remains until you log out, remove the extension, or clear its storage. Remove an agent in the
+        extension to revoke it. Revoke and pause take effect on the authorization service, including for requests made
+        while Chrome is closed. To ask about data held for this extension, email
+        <a href="mailto:hello@spacexpad.xyz">hello@spacexpad.xyz</a>. Data Privy holds is subject to Privy's own
+        deletion process.
+      </p>
+
+      <h2>Changes</h2>
+      <p>
+        SpaceXpad will update this policy and the date above when these practices change. The hosted copy should stay
+        at <a href="https://spacexpad.xyz/agent-wallet/privacy">https://spacexpad.xyz/agent-wallet/privacy</a>.
+      </p>
+    </main>
+  </body>
+</html>
