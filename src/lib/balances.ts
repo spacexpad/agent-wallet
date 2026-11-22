@@ -1,4 +1,4 @@
-import { browserRpcUrl, llamaChain, resolveCluster } from '../../shared/chains.ts';
+import { llamaChain, resolveCluster } from '../../shared/chains.ts';
 import { formatUsd, rawToMicroUsd } from '../../shared/money.ts';
 import { nativeAsset, parseBinplorerTokens, parseBlockscoutTokens, parseJupiterHoldings, parseSolanaTokenAccounts } from '../../shared/assets.ts';
 import type { Asset, ChainId, NetworkId, Snapshot } from '../../shared/types.ts';
@@ -17,7 +17,8 @@ export async function readClusterBalance(input: {
   const cluster = resolveCluster(input.chain, input.network);
   const address = cluster.addressKind === 'solana' ? input.solanaAddress : input.evmAddress;
   if (!address) throw new Error('Wallets are not ready yet.');
-  const rpcUrl = browserRpcUrl(cluster.chain, cluster.network, input.rpcUrl);
+  // Callers pass clusterRpcUrl(). Rewriting here would replace a user-supplied Solana Labs URL.
+  const rpcUrl = input.rpcUrl.trim();
   try {
     const nativeRaw =
       cluster.chain === 'solana'

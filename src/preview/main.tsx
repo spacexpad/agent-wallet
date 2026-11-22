@@ -23,7 +23,7 @@ const framed = params.get('frame') === 'store';
 if (framed) document.documentElement.classList.add('store-shot');
 const state = params.get('state') ?? 'login';
 const lang = (params.get('lang') ?? 'zh-CN') as Lang;
-const settingsPage = params.get('page') === 'risk' ? 'risk' : 'home';
+const settingsPage = params.get('page') === 'risk' ? 'risk' : params.get('page') === 'rpc' ? 'rpc' : 'home';
 
 const solana = 'So1aNaDemo11111111111111111111111111111111';
 const evm = '0xDeaD00000000000000000000000000000000b0b0';
@@ -225,7 +225,7 @@ function Preview() {
   }
 }
 
-function frameCaption(which: string, page: 'home' | 'risk'): string {
+function frameCaption(which: string, page: 'home' | 'risk' | 'rpc'): string {
   if (which === 'login') return 'Sign in with email or Google. Privy holds the keys. There is no seed phrase.';
   if (which === 'settings' && page === 'risk') return 'Risk policy. Full access is the default. Pause all agents is the kill switch.';
   if (which === 'settings') return 'Settings home. Language, risk policy, and the other rows open their own pages.';
@@ -233,7 +233,7 @@ function frameCaption(which: string, page: 'home' | 'risk'): string {
   return 'Mainnet balances for a demo wallet. Open the list to copy a public address.';
 }
 
-function SettingsPreview({ page }: { page: 'home' | 'risk' }) {
+function SettingsPreview({ page }: { page: 'home' | 'risk' | 'rpc' }) {
   const store = demoStore();
   return <SettingsPanel store={store} logout={() => undefined} initialPage={page} />;
 }

@@ -1,4 +1,4 @@
-import { DEFAULT_RPCS } from './chains.ts';
+import { DEFAULT_RPCS, mergePackedRpc, sanitizeRpcOverrides } from './chains.ts';
 import type { Settings, Store } from './types.ts';
 import { DEFAULT_POLICY } from './types.ts';
 
@@ -33,6 +33,7 @@ export function defaultSettings(): Settings {
     privyKeyQuorumId: DEFAULT_KEY_QUORUM_ID,
     ownerKey: '',
     rpc: { ...DEFAULT_RPCS },
+    rpcOverrides: {},
     configError: null,
   };
 }
@@ -78,7 +79,8 @@ export function normalizeStore(value: unknown): Store {
     settings: {
       ...base.settings,
       ...settings,
-      rpc: { ...DEFAULT_RPCS, ...settings.rpc },
+      rpc: mergePackedRpc(settings.rpc),
+      rpcOverrides: sanitizeRpcOverrides(settings.rpcOverrides),
       authUrl: settings.authUrl || DEFAULT_AUTH_URL,
       privyKeyQuorumId: settings.privyKeyQuorumId || DEFAULT_KEY_QUORUM_ID,
       ownerKey: settings.ownerKey ?? '',

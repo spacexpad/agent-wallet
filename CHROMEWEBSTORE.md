@@ -64,7 +64,7 @@ There is no `tabs`, `history`, `<all_urls>`, or content script.
 
 | Permission | Plain-English justification |
 | --- | --- |
-| `storage` | Saves this browser's language, display name, risk policy, bound agents, recent agent activity, cached balances, the loopback bridge token, and a local owner key for the authorization service. The Privy SDK also keeps the login session in extension local storage. Nothing here is a seed or an exported private key. |
+| `storage` | Saves this browser's language, display name, risk policy, bound agents, recent agent activity, cached balances, the loopback bridge token, a local owner key for the authorization service, and any RPC endpoint typed into Settings. Those endpoints stay in this browser and are not uploaded. The Privy SDK also keeps the login session in extension local storage. Nothing here is a seed or an exported private key. |
 | `identity` | Google sign-in is Privy's OAuth. Chrome only completes that redirect through `chrome.identity`, at `https://<extension-id>.chromiumapp.org/`. The extension does not read Google contacts or any other identity profile. |
 | `offscreen` | An offscreen document keeps the Privy session and the local agent bridge available after the toolbar popup closes. Chrome's offscreen reason is local storage. |
 | `alarms` | A one-minute alarm recreates that offscreen document if Chrome suspends it, so a paired agent can still reach an open extension. |
@@ -98,7 +98,13 @@ There is no `tabs`, `history`, `<all_urls>`, or content script.
 | `http://127.0.0.1:47321/*` | Local MCP bridge on the same computer. It is not a remote server. The extension reads the bridge token from loopback and does not ask you to paste it into Settings. |
 | `https://spacexpad-agent-wallet-auth.timmy2048.workers.dev/*` | Authorization service for pairing, the offline grant, policy updates, revoke, and sign or send while the extension is closed. This replaced `https://*.workers.dev/*`. No other workers.dev host is called. |
 
-Removed because the extension never requests them: `https://api.mainnet-beta.solana.com/*`, `https://api.mainnet.solana.com/*`, `https://bsc.blockscout.com/*`, and `https://bsc-testnet.blockscout.com/*`.
+Removed because the extension never requests them at install: `https://api.mainnet-beta.solana.com/*`, `https://api.mainnet.solana.com/*`, `https://bsc.blockscout.com/*`, and `https://bsc-testnet.blockscout.com/*`.
+
+## Optional host permissions
+
+`optional_host_permissions` lists `https://*/*`, `http://localhost/*`, `http://127.0.0.1/*`, and `http://[::1]/*`. Chrome does not grant these at install. It asks only when someone saves a custom RPC endpoint, and only for that endpoint's origin. The public defaults above do not show that prompt. A custom URL stays in `chrome.storage.local`. The extension does not send it to SpaceXpad. Do not put a custom RPC URL in a screenshot or in this listing.
+
+Install-time `host_permissions` still do not include `<all_urls>`.
 
 ## Remote code
 
@@ -131,7 +137,7 @@ Certifications to check:
 | --- | --- | --- |
 | Personally identifiable information | Yes | Email address, and the Google account when you choose Google. Privy collects it for login. The extension stores the email and Privy user id in `chrome.storage.local` to label this profile. |
 | Health information | No | |
-| Financial and payment information | Yes | Public wallet addresses, balances, and the transaction or message an agent asks to sign or send. Used for the wallet. Sent to the RPC, Blockscout, Jupiter, or Binplorer hosts above when that read or broadcast runs, and to the authorization Worker when offline signing runs. |
+| Financial and payment information | Yes | Public wallet addresses, balances, and the transaction or message an agent asks to sign or send. Used for the wallet. Sent to the public RPC hosts above, or to an RPC host saved in Settings, when that read or broadcast runs, and to Blockscout, Jupiter, or Binplorer for token lists. Also sent to the authorization Worker when offline signing runs. |
 | Authentication information | Yes | Privy session in extension local storage. A local owner key and binding token authorize the Worker. These are not wallet private keys. |
 | Personal communications | No | |
 | Location | No | |

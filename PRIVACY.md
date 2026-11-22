@@ -22,6 +22,7 @@ The extension stores the following in `chrome.storage.local` on your computer:
 - The loopback bridge token, which the extension reads from the local MCP server. You are not asked to paste it into Settings
 - Your email address and Privy user id after you sign in
 - Display name, language, and risk-policy settings
+- Optional RPC endpoints you enter in Settings. An empty field is not stored. A URL you enter stays in extension local storage and is not sent to SpaceXpad. It may include a query string from your provider
 - Bound agent names and binding tokens
 - A PAIR_CODE while a pairing is in progress. It expires in 30 minutes
 - Wallet addresses after login
@@ -35,7 +36,7 @@ The Privy SDK also stores its session in extension local storage. That data stay
 When you use the extension, it contacts:
 
 - **Privy** (`auth.privy.io`, `api.privy.io`, other `privy.io` hosts the SDK uses, and `rpc.privy.systems`) to sign you in with email or Google, to create the embedded wallets, and to sign. Your email address, or your Google account if you choose Google, is handled by Privy. Privy's own privacy policy applies to that account.
-- **Public RPC providers** to read balances and submit transactions. Defaults are PublicNode for Solana mainnet, Ethereum, Base, and BNB Chain, and `api.devnet.solana.com` for Solana devnet. A testnet or devnet host is used only when the request names that cluster. These calls send the public address and, when you broadcast, the signed transaction.
+- **Public RPC providers** to read balances and submit transactions. Defaults are PublicNode for Solana mainnet, Ethereum, Base, and BNB Chain, and `api.devnet.solana.com` for Solana devnet. A testnet or devnet host is used only when the request names that cluster. If you save an RPC endpoint for a cluster, balance reads and broadcasts for that cluster go to that host instead. These calls send the public address and, when you broadcast, the signed transaction.
 - **Blockscout** (`eth.blockscout.com`, `base.blockscout.com`, and the Sepolia hosts for those chains) to list fungible tokens for the public EVM address.
 - **Jupiter** (`lite-api.jup.ag`) with the Solana address, only when the Solana token-account read is blocked and the extension falls back to Jupiter's public holdings API.
 - **Binplorer** (`api.binplorer.com`) with the BNB Chain address to list fungible tokens. The request includes Binplorer's published `apiKey=freekey` parameter. That value is not a SpaceXpad secret. BNB Chain testnet token lists are not requested.

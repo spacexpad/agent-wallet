@@ -94,7 +94,10 @@ export type Settings = {
   authUrl: string;
   privyKeyQuorumId: string;
   ownerKey: string;
+  /** Packed public RPCs from config.json, filled with DEFAULT_RPCS. Not a user override. */
   rpc: RpcMap;
+  /** User-entered RPC URLs. A missing or blank key uses the packed public RPC for that cluster. */
+  rpcOverrides: RpcMap;
   configError: string | null;
 };
 

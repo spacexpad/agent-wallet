@@ -1,4 +1,4 @@
-import type { ChainId, NetworkId } from './types.ts';
+import type { ChainId, NetworkId, RpcMap } from './types.ts';
 import { CHAIN_ORDER } from './types.ts';
 
 export type Cluster = {
@@ -138,6 +138,84 @@ export function browserRpcUrl(chain: ChainId, network: NetworkId, configured: st
   const url = configured.trim().replace(/\/+$/, '');
   if (chain === 'solana' && network === 'mainnet' && LABS_SOLANA_MAINNET.has(url)) return SOLANA_BROWSER_MAINNET_RPC;
   return url;
+}
+
+const MAX_RPC_URL_LENGTH = 2048;
+
+export function rpcClusters(): Cluster[] {
+  return Object.values(CLUSTERS);
+}
+
+export function parseRpcOverride(value: string): { ok: true; url: string } | { ok: false } {
+  const trimmed = value.trim();
+  if (!trimmed) return { ok: true, url: '' };
+  if (trimmed.length > MAX_RPC_URL_LENGTH || /\s/.test(trimmed)) return { ok: false };
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    return { ok: false };
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return { ok: false };
+  if (!url.hostname || url.hostname === '.') return { ok: false };
+  if (url.protocol === 'http:' && !isLoopbackHost(url.hostname)) return { ok: false };
+  return { ok: true, url: trimmed.replace(/\/+$/, '') };
+}
+
+export function sanitizeRpcOverrides(value: unknown): RpcMap {
+  if (!value || typeof value !== 'object') return {};
+  const out: RpcMap = {};
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (!(key in DEFAULT_RPCS) || typeof raw !== 'string') continue;
+    const parsed = parseRpcOverride(raw);
+    if (!parsed.ok || !parsed.url) continue;
+    out[key] = parsed.url;
+  }
+  return out;
+}
+
+export function mergePackedRpc(value: unknown): RpcMap {
+  const extra: RpcMap = {};
+  if (value && typeof value === 'object') {
+    for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+      if (typeof raw !== 'string') continue;
+      const trimmed = raw.trim();
+      if (!trimmed) continue;
+      extra[key] = trimmed;
+    }
+  }
+  return { ...DEFAULT_RPCS, ...extra };
+}
+
+export function activeRpcUrl(chain: ChainId, network: NetworkId, packed: string, override?: string | null): string {
+  const custom = parseRpcOverride(override ?? '');
+  if (custom.ok && custom.url) return custom.url;
+  const configured = packed.trim();
+  const fallback = configured || DEFAULT_RPCS[`${chain}:${network}`] || '';
+  return browserRpcUrl(chain, network, fallback);
+}
+
+export function clusterRpcUrl(
+  settings: { rpc?: RpcMap; rpcOverrides?: RpcMap },
+  chain: ChainId,
+  network: NetworkId,
+): string {
+  const cluster = resolveCluster(chain, network);
+  return activeRpcUrl(cluster.chain, cluster.network, settings.rpc?.[cluster.rpcKey] ?? '', settings.rpcOverrides?.[cluster.rpcKey]);
+}
+
+export function rpcOriginPattern(value: string): string | null {
+  const parsed = parseRpcOverride(value);
+  if (!parsed.ok || !parsed.url) return null;
+  const url = new URL(parsed.url);
+  const bare = url.hostname.replace(/^\[|\]$/g, '');
+  const host = bare.includes(':') ? `[${bare}]` : bare;
+  return `${url.protocol}//${host}/*`;
+}
+
+function isLoopbackHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  return host === 'localhost' || host === '127.0.0.1' || host === '::1';
 }
 
 export function isChainId(value: string): value is ChainId {
