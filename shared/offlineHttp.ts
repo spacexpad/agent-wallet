@@ -74,7 +74,15 @@ export async function handleAuthRequest(state: LedgerState, request: Request, de
     }
     if (url.pathname === '/v1/policy') {
       const addresses = Array.isArray(body.whitelist) ? body.whitelist.filter((item): item is string => typeof item === 'string') : [];
-      const next = await setOfflinePolicy(state, { ownerKey: text(body, 'ownerKey'), paused: body.paused === true, whitelist: addresses });
+      const maxNative = nativeCaps(body.maxNative);
+      const next = await setOfflinePolicy(state, {
+        ownerKey: text(body, 'ownerKey'),
+        paused: body.paused === true,
+        whitelist: addresses,
+        fullAccess: body.fullAccess !== false,
+        whitelistEnabled: body.whitelistEnabled === true,
+        maxNative,
+      });
       return { state: next, persist: true, response: json(200, { ok: true }) };
     }
     if (url.pathname === '/v1/revoke') {
@@ -139,6 +147,15 @@ function optionalText(body: Record<string, unknown>, key: string): string | null
 function bearer(request: Request): string {
   const header = request.headers.get('authorization') ?? '';
   return header.startsWith('Bearer ') ? header.slice(7) : '';
+}
+
+function nativeCaps(value: unknown): Record<string, string> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const caps: Record<string, string> = {};
+  for (const [key, amount] of Object.entries(value)) {
+    if (typeof amount === 'string' && amount.trim()) caps[key] = amount.trim();
+  }
+  return Object.keys(caps).length > 0 ? caps : null;
 }
 
 function json(status: number, body: unknown): Response {

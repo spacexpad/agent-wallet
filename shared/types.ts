@@ -133,6 +133,8 @@ export type Store = {
   settings: Settings;
   bridge: { connected: boolean; error: string | null; at: number | null };
   vaultError: string | null;
+  /** False only after the user turns offline signing off. Missing means on. */
+  offlineSigning: boolean | null;
 };
 
 export type TxKind = 'native_transfer' | 'serialized';

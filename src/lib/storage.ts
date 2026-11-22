@@ -1,5 +1,5 @@
 import { DEFAULT_RPCS } from '../../shared/chains.ts';
-import { defaultStore, normalizeStore } from '../../shared/store.ts';
+import { DEFAULT_AUTH_URL, DEFAULT_KEY_QUORUM_ID, defaultStore, normalizeStore } from '../../shared/store.ts';
 import type { Settings, Store } from '../../shared/types.ts';
 
 const KEY = 'spacexpad';
@@ -41,8 +41,8 @@ export async function hydrateConfig(): Promise<void> {
         ...store,
         settings: {
           ...store.settings,
-          authUrl: store.settings.authUrl || file?.authUrl?.trim() || '',
-          privyKeyQuorumId: store.settings.privyKeyQuorumId || file?.privyKeyQuorumId?.trim() || '',
+          authUrl: file?.authUrl?.trim() || store.settings.authUrl || DEFAULT_AUTH_URL,
+          privyKeyQuorumId: file?.privyKeyQuorumId?.trim() || store.settings.privyKeyQuorumId || DEFAULT_KEY_QUORUM_ID,
         },
       };
     }
@@ -53,8 +53,8 @@ export async function hydrateConfig(): Promise<void> {
       privyClientId: cleanId(file?.privyClientId),
       bridgeUrl: file?.bridgeUrl?.trim() || store.settings.bridgeUrl,
       bridgeToken: file?.bridgeToken?.trim() || store.settings.bridgeToken,
-      authUrl: file?.authUrl?.trim() || store.settings.authUrl,
-      privyKeyQuorumId: file?.privyKeyQuorumId?.trim() || store.settings.privyKeyQuorumId,
+      authUrl: file?.authUrl?.trim() || store.settings.authUrl || DEFAULT_AUTH_URL,
+      privyKeyQuorumId: file?.privyKeyQuorumId?.trim() || store.settings.privyKeyQuorumId || DEFAULT_KEY_QUORUM_ID,
       rpc: { ...DEFAULT_RPCS, ...file?.rpc },
       configError,
     };

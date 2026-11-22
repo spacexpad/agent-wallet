@@ -7,7 +7,7 @@ import { evmCallFromSerialized, evmDestinations } from './evmIntent.ts';
 import { copyKeys, t } from './i18n.ts';
 import { evaluatePolicy } from './policy.ts';
 import { buildInstallNote, buildPairPrompt, MCP_TOOL_NAMES } from './prompt.ts';
-import { defaultStore, isDisplayName, walletReady } from './store.ts';
+import { defaultStore, isDisplayName, offlineSigningEnabled, shouldAutoGrantOffline, walletReady } from './store.ts';
 import { DEFAULT_POLICY } from './types.ts';
 import { CHAIN_ORDER } from './types.ts';
 import { embeddedPresence, missingEmbeddedWallets } from './wallets.ts';
@@ -316,6 +316,25 @@ describe('prompt and copy', () => {
     assert.equal(isDisplayName('ada'), true);
     assert.equal(isDisplayName('a'), false);
     assert.equal(isDisplayName('ada lovelace'), false);
+  });
+});
+
+describe('offline signing default', () => {
+  it('treats a missing preference as on and does not auto-grant after the user turns it off', () => {
+    assert.equal(offlineSigningEnabled(undefined), true);
+    assert.equal(offlineSigningEnabled(null), true);
+    assert.equal(offlineSigningEnabled(false), false);
+    const base = {
+      authenticated: true,
+      bound: true,
+      alreadyGranted: false,
+      hasSolanaAddress: true,
+      hasWalletId: true,
+    };
+    assert.equal(shouldAutoGrantOffline({ ...base, offlineSigning: null }), true);
+    assert.equal(shouldAutoGrantOffline({ ...base, offlineSigning: undefined }), true);
+    assert.equal(shouldAutoGrantOffline({ ...base, offlineSigning: false }), false);
+    assert.equal(shouldAutoGrantOffline({ ...base, offlineSigning: null, alreadyGranted: true }), false);
   });
 });
 

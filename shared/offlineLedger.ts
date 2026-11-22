@@ -1,10 +1,13 @@
 import { messageBytes, signatureBase58, signatureBase64 } from './message.ts';
-import { decideOffline, DEFAULT_OFFLINE_MAX, type OfflineRequest } from './offlinePolicy.ts';
+import { decideOffline, type OfflineRequest } from './offlinePolicy.ts';
 import type { ChainId } from './types.ts';
 
 export type OwnerPolicy = {
   paused: boolean;
   whitelist: string[];
+  fullAccess: boolean;
+  whitelistEnabled: boolean;
+  maxNative: Record<string, string> | null;
 };
 
 export type PairRecord = {
@@ -32,6 +35,9 @@ export type BindingRecord = {
   revoked: boolean;
   paused: boolean;
   whitelist: string[];
+  fullAccess: boolean;
+  whitelistEnabled: boolean;
+  maxNative: Record<string, string> | null;
 };
 
 export type LedgerState = {
@@ -128,6 +134,9 @@ export async function grantOffline(
     revoked: false,
     paused: owner.paused,
     whitelist: [...owner.whitelist],
+    fullAccess: owner.fullAccess,
+    whitelistEnabled: owner.whitelistEnabled,
+    maxNative: owner.maxNative ? { ...owner.maxNative } : null,
   };
   if (existing) {
     const index = next.bindings.indexOf(existing);
@@ -140,17 +149,30 @@ export async function grantOffline(
 
 export async function setOfflinePolicy(
   state: LedgerState,
-  input: { ownerKey: string; paused: boolean; whitelist: string[] },
+  input: {
+    ownerKey: string;
+    paused: boolean;
+    whitelist: string[];
+    fullAccess?: boolean;
+    whitelistEnabled?: boolean;
+    maxNative?: Record<string, string> | null;
+  },
 ): Promise<LedgerState> {
   const next = clone(state);
   const ownerHash = await sha256Hex(input.ownerKey);
   const owner = ensureOwner(next, ownerHash);
   owner.paused = input.paused;
   owner.whitelist = [...input.whitelist];
+  if (input.fullAccess !== undefined) owner.fullAccess = input.fullAccess;
+  if (input.whitelistEnabled !== undefined) owner.whitelistEnabled = input.whitelistEnabled;
+  if (input.maxNative !== undefined) owner.maxNative = input.maxNative ? { ...input.maxNative } : null;
   for (const binding of next.bindings) {
     if (binding.ownerHash !== ownerHash) continue;
     binding.paused = input.paused;
     binding.whitelist = [...input.whitelist];
+    binding.fullAccess = owner.fullAccess;
+    binding.whitelistEnabled = owner.whitelistEnabled;
+    binding.maxNative = owner.maxNative ? { ...owner.maxNative } : null;
   }
   return next;
 }
@@ -182,7 +204,9 @@ export async function executeOffline(
       revoked: binding.revoked,
       paused: binding.paused,
       whitelist: binding.whitelist,
-      maxNative: { ...DEFAULT_OFFLINE_MAX },
+      fullAccess: binding.fullAccess,
+      whitelistEnabled: binding.whitelistEnabled,
+      maxNative: binding.maxNative,
     },
     request,
   );
@@ -241,7 +265,7 @@ export async function executeOffline(
 function ensureOwner(state: LedgerState, ownerHash: string): OwnerPolicy {
   const index = state.ownerHashes.indexOf(ownerHash);
   if (index >= 0) return state.owners[index];
-  const owner = { paused: false, whitelist: [] as string[] };
+  const owner: OwnerPolicy = { paused: false, whitelist: [], fullAccess: true, whitelistEnabled: false, maxNative: null };
   state.ownerHashes.push(ownerHash);
   state.owners.push(owner);
   return owner;
@@ -249,10 +273,22 @@ function ensureOwner(state: LedgerState, ownerHash: string): OwnerPolicy {
 
 function clone(state: LedgerState): LedgerState {
   return {
-    owners: state.owners.map((owner) => ({ paused: owner.paused, whitelist: [...owner.whitelist] })),
+    owners: state.owners.map((owner) => ({
+      paused: owner.paused,
+      whitelist: [...owner.whitelist],
+      fullAccess: owner.fullAccess !== false,
+      whitelistEnabled: owner.whitelistEnabled === true,
+      maxNative: owner.maxNative ? { ...owner.maxNative } : null,
+    })),
     ownerHashes: [...state.ownerHashes],
     pairs: state.pairs.map((pair) => ({ ...pair })),
-    bindings: state.bindings.map((binding) => ({ ...binding, whitelist: [...binding.whitelist] })),
+    bindings: state.bindings.map((binding) => ({
+      ...binding,
+      whitelist: [...binding.whitelist],
+      fullAccess: binding.fullAccess !== false,
+      whitelistEnabled: binding.whitelistEnabled === true,
+      maxNative: binding.maxNative ? { ...binding.maxNative } : null,
+    })),
   };
 }
 
