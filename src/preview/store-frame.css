@@ -63,10 +63,3 @@ html.store-shot .fixture-label {
   border-radius: 20px;
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.45);
 }
-
-/* The address menu is absolutely positioned in the product and covers the
-   first token. The store frame drops the list so both the open menu and the
-   demo balances stay visible. This rule is not part of the extension bundle. */
-html.store-shot .store-popup .home > div:not(.net) {
-  margin-top: 128px;
-}

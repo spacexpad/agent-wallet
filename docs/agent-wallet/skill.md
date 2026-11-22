@@ -9,16 +9,16 @@ This document is the setup for the SpaceXpad agent wallet Chrome extension. It i
 
 Privy holds the keys. There is no seed phrase, and this service never receives one. Install the MCP server on the agent device first. Use the user's computer only when that agent has no runtime of its own. Offline signing is on by default after login once an agent is bound. The extension grants it without a separate opt-in. Sign and send then go to the authorization Worker even if Chrome is closed. The local extension bridge remains the fallback when that grant is not in place and the extension is open.
 
-Official URL: `https://spacexpad.xyz/agent-wallet/skill.md`. This file is the copy to host there. On 22 November 2026 the live page was an older draft that told the user to paste a bridge token into Settings. That instruction is wrong. Do not ask the user to paste a bridge token into Settings. Do not host this file at `/`, `/skill`, `/skill.md`, or `/agents`.
+Official setup: `https://spacexpad.xyz/agent-wallet/skill.md`. The repository is [https://github.com/spacexpad/agent-wallet](https://github.com/spacexpad/agent-wallet). Do not ask the user to paste a bridge token into Settings.
 
 ## Install
 
-You need Node.js 22 or newer and a checkout of the `spacexpad-agent-wallet` repository.
+You need Node.js 22 or newer and a checkout of [https://github.com/spacexpad/agent-wallet](https://github.com/spacexpad/agent-wallet).
 
 ```bash
 npm install
 npm run build
-SPACEXPAD_AUTH_URL=https://<authorization-worker> node --experimental-strip-types mcp/src/index.ts
+SPACEXPAD_AUTH_URL=https://spacexpad-agent-wallet-auth.timmy2048.workers.dev node --experimental-strip-types mcp/src/index.ts
 ```
 
 Set `SPACEXPAD_AUTH_URL` to the authorization Worker. Omit it only when this MCP and the extension are on the same computer and offline signing is not granted. Do not put a Privy app secret, authorization private key, or bridge token in this command, in chat, or in the extension.
@@ -41,7 +41,7 @@ Cursor or Claude Desktop:
     "spacexpad-agent-wallet": {
       "command": "node",
       "args": ["--experimental-strip-types", "mcp/src/index.ts"],
-      "cwd": "<absolute path to the spacexpad-agent-wallet repository>"
+      "cwd": "<absolute path to a checkout of https://github.com/spacexpad/agent-wallet>"
     }
   }
 }

@@ -4,7 +4,7 @@
 **Contact:** [hello@spacexpad.xyz](mailto:hello@spacexpad.xyz)  
 **Last updated:** 22 November 2026
 
-This policy describes the SpaceXpad Agent Wallet Chrome extension. It is not legal advice. The page to host is `docs/agent-wallet/privacy.html`, at `https://spacexpad.xyz/agent-wallet/privacy`. Publish that file only under `/agent-wallet/`. Do not replace `/`, `/skill`, `/skill.md`, or `/agents`.
+This policy describes the SpaceXpad Agent Wallet Chrome extension. It is not legal advice.
 
 SpaceXpad Agent Wallet lets you sign in, see addresses and balances for Solana, Ethereum, Base, and BNB Chain, and let a paired agent request balances, signatures, and sends under a risk policy you control. The popup shows mainnet balances by default. Agent tools use mainnet unless the request explicitly names devnet or testnet. The SpaceXpad website is a separate product and is still on Solana devnet.
 
@@ -67,4 +67,4 @@ Local data remains until you log out, remove the extension, or clear its storage
 
 ## Changes
 
-SpaceXpad will update this policy and the date above when these practices change. The hosted copy should stay at `https://spacexpad.xyz/agent-wallet/privacy`.
+SpaceXpad will update this policy and the date above when these practices change.

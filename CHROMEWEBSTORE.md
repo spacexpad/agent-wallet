@@ -144,14 +144,16 @@ Data is not sold. It is not used for advertising. It is not used for credit. Sha
 ## Assets
 
 - [x] Icons `public/icons/icon-16.png`, `icon-32.png`, `icon-48.png`, `icon-128.png`, from `assets/spacexpad-x-avatar.png`
-- [x] `store/screenshots/sign-in.png` — 1280×800, sign-in screen
+- [x] `store/screenshots/sign-in.png` — 1280×800, the sign-in screen
 - [x] `store/screenshots/assets.png` — 1280×800, assets with the address popover open
-- [x] `store/screenshots/settings.png` — 1280×800, language, full access, offline signing, and the kill switch
+- [x] `store/screenshots/settings-home.png` — 1280×800, Settings home (row list and log out)
+- [x] `store/screenshots/settings-risk.png` — 1280×800, risk policy subpage (full access and pause)
+- [x] `store/screenshots/agent.png` — 1280×800, Agent tab with offline signing
 - [x] `store/screenshots/promo-440x280.png` — optional small promo tile
 - [ ] Privacy policy live at `https://spacexpad.xyz/agent-wallet/privacy` (coordinator hosts the HTML; do not deploy from this repo)
 - [ ] Privy origin and redirect updated to the new extension ID before publish
 
-Screenshots use fictional demo data. They do not show a real balance, a PAIR_CODE, a bridge token, or a secret. In the product, language and risk policy are Settings pages, and offline signing is on the Agent tab. The settings image places those real controls in one popup so the listing shows them together.
+Screenshots use fictional demo data for `@nova`. They do not show a real balance, a PAIR_CODE, a bridge token, or a secret. Settings home, the risk-policy subpage, and the Agent tab are separate images because those are separate screens in the popup.
 
 ## Produce the zip
 
@@ -174,7 +176,7 @@ First release. Keyless Solana, Ethereum, Base, and BNB Chain wallets. Privy hold
 3. Paste one justification for every permission and every host above.
 4. Disclose the `auth.privy.io` iframe. State that CAPTCHA, Telegram, and Stripe loaders are not in the package.
 5. Enter the privacy URL and the data-use answers above.
-6. Upload the three 1280×800 screenshots. The promo tile is optional.
+6. Upload the 1280×800 screenshots: sign-in, assets, Settings home, risk policy, and the Agent tab. The promo tile is optional.
 7. When Chrome assigns the store extension ID, add `chrome-extension://<new-id>/` and `https://<new-id>.chromiumapp.org/` on Privy app `cmwqh29x000hj0glajlwjht0s` before you publish. Otherwise Google login fails.
 8. Confirm email and Google login are on, and CAPTCHA and Telegram login are off.
 9. Install the store build and sign in with Google before you release it to users.
