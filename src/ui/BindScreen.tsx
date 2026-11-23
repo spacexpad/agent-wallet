@@ -12,6 +12,7 @@ export function BindScreen({
   onToken,
   onCopy,
   onBind,
+  onRetry,
   onLanguage,
   onLogout,
 }: {
@@ -24,6 +25,7 @@ export function BindScreen({
   onToken: (value: string) => void;
   onCopy: () => void;
   onBind: () => void;
+  onRetry?: (() => void) | null;
   onLanguage: (lang: Lang) => void;
   onLogout: () => void;
 }) {
@@ -61,6 +63,11 @@ export function BindScreen({
         <p className="error" role="alert">
           {error}
         </p>
+      ) : null}
+      {error && onRetry ? (
+        <button type="button" className="quiet-button" onClick={onRetry}>
+          {t(lang, 'retry')}
+        </button>
       ) : null}
       <p className="label">{t(lang, 'language')}</p>
       <LanguageChoices lang={lang} onLanguage={onLanguage} />

@@ -1,9 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { BIND_TOKEN_PATTERN, PAIR_TTL_MS, buildInstallNote, createPairCode } from '../../shared/prompt.ts';
-import { hasAppId, walletReady } from '../../shared/store.ts';
+import { bindAwaitingGrant, hasAppId, walletReady } from '../../shared/store.ts';
 import { messageSignCopy, t, testnetConfirmCopy } from '../../shared/i18n.ts';
 import type { Lang, Store } from '../../shared/types.ts';
+import { redeemBindToken, registerPendingPair } from '../lib/bindFlow.ts';
 import { copyText } from '../lib/copyText.ts';
+import {
+  browserSession,
+  clearOAuthCallback,
+  handoffGoogleSession,
+  oauthFlowError,
+  openGoogleAuthWindow,
+  rememberOAuthCallback,
+  shouldStartGoogleOAuth,
+  type AuthWindowLock,
+} from '../lib/googleAuth.ts';
 import { authPost, ensureOwnerKey } from '../lib/offlineClient.ts';
 import { completeEmailLogin, endVaultSession, notifyAuthChanged } from '../lib/sessionSync.ts';
 import { bridgePost, ensureBridgeToken, registerStoredPair, updateStore } from '../lib/storage.ts';
@@ -12,10 +23,12 @@ import { AssetHome } from '../ui/AssetHome.tsx';
 import { brandIcon } from '../ui/brand.ts';
 import { Banner, BindScreen, CopyFallback } from '../ui/BindScreen.tsx';
 import { LoginScreen, type OtpPhase } from '../ui/LoginScreen.tsx';
-import { OfflineGrant } from '../ui/OfflineGrant.tsx';
+import { AutoGrant, OfflineGrant } from '../ui/OfflineGrant.tsx';
 import { SettingsPanel } from '../ui/SettingsPanel.tsx';
 import { useExtensionStore } from './useStore.ts';
 import { useMainnetBalances } from './useMainnet.ts';
+
+const authWindowLock: AuthWindowLock = { current: null };
 
 type Tab = 'wallet' | 'agent' | 'settings';
 
@@ -96,60 +109,127 @@ function Setup({ store }: { store: Store }) {
 function Session({ surface, store }: { surface: 'popup' | 'auth'; store: Store }) {
   const vault = useVault();
   const started = useRef(false);
+  const handedOff = useRef(false);
+  const alive = useRef(true);
+  const [callbackPending, setCallbackPending] = useState(() =>
+    surface === 'auth' ? rememberOAuthCallback(window.location.search, browserSession()) : false,
+  );
+  const [googleError, setGoogleError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [grantError, setGrantError] = useState<string | null>(null);
+  const [grantAttempt, setGrantAttempt] = useState(0);
   const lang = store.language;
 
   useEffect(() => {
-    if (surface !== 'auth' || !vault.ready || vault.authenticated || started.current) return;
-    started.current = true;
-    void vault.googleLogin.initOAuth({ provider: 'google' });
-  }, [surface, vault.authenticated, vault.googleLogin, vault.ready]);
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
 
   useEffect(() => {
-    if (surface !== 'auth' || !vault.authenticated) return;
-    let cancel = false;
-    const finish = async () => {
-      await notifyAuthChanged();
-      if (!cancel) window.close();
-    };
-    void finish();
-    return () => {
-      cancel = true;
-    };
+    if (surface !== 'auth') return;
+    if (
+      !shouldStartGoogleOAuth({
+        ready: vault.ready,
+        authenticated: vault.authenticated,
+        callbackPending,
+        alreadyStarted: started.current,
+      })
+    ) {
+      return;
+    }
+    started.current = true;
+    setGoogleError(null);
+    void vault.googleLogin.initOAuth({ provider: 'google' }).catch((reason: unknown) => {
+      if (!alive.current) return;
+      const message = reason instanceof Error && reason.message.trim() ? reason.message : t(lang, 'googleSignInFailed');
+      setGoogleError(message);
+    });
+  }, [attempt, callbackPending, lang, surface, vault.authenticated, vault.googleLogin, vault.ready]);
+
+  useEffect(() => {
+    if (surface !== 'auth' || !vault.authenticated || handedOff.current) return;
+    handedOff.current = true;
+    clearOAuthCallback(browserSession());
+    setCallbackPending(false);
+    void handoffGoogleSession({
+      notify: notifyAuthChanged,
+      openPopup: async () => {
+        await chrome.action.openPopup();
+      },
+      close: () => window.close(),
+    });
   }, [surface, vault.authenticated]);
+
+  const retryGoogle = () => {
+    started.current = false;
+    clearOAuthCallback(browserSession());
+    setCallbackPending(false);
+    setGoogleError(null);
+    setAttempt((value) => value + 1);
+  };
+  const retryGrant = () => {
+    setGrantError(null);
+    setGrantAttempt((value) => value + 1);
+  };
 
   if (!vault.ready) {
     return (
       <main className="shell">
-        <p className="note pad">{t(lang, 'working')}</p>
+        <p className="note pad">{surface === 'auth' ? t(lang, 'openingGoogle') : t(lang, 'working')}</p>
       </main>
     );
   }
-  if (!vault.authenticated) return <Login surface={surface} lang={lang} vault={vault} />;
-  if (surface === 'auth') {
-    return (
-      <main className="shell">
-        <p className="note pad">{t(lang, 'signedInClose')}</p>
-      </main>
-    );
+  if (!vault.authenticated) {
+    if (surface === 'auth') {
+      const flowError = oauthFlowError(vault.googleLogin.state, t(lang, 'googleSignInFailed'));
+      return <GoogleWait lang={lang} error={googleError ?? flowError} onRetry={retryGoogle} />;
+    }
+    return <Login lang={lang} vault={vault} />;
   }
   const logout = () => {
     void endVaultSession(() => vault.logout());
+    if (surface === 'auth') window.close();
   };
-  if (!walletReady(store)) {
-    return <BindGate store={store} logout={logout} />;
-  }
-  return <Console store={store} logout={logout} />;
+  return (
+    <>
+      <AutoGrant store={store} attempt={grantAttempt} onError={setGrantError} />
+      {walletReady(store) ? (
+        <Console store={store} logout={logout} grantError={grantError} onRetryGrant={retryGrant} />
+      ) : (
+        <BindGate store={store} logout={logout} grantError={grantError} onRetryGrant={retryGrant} />
+      )}
+    </>
+  );
 }
 
-function Login({
-  surface,
-  lang,
-  vault,
-}: {
-  surface: 'popup' | 'auth';
-  lang: Lang;
-  vault: ReturnType<typeof useVault>;
-}) {
+function GoogleWait({ lang, error, onRetry }: { lang: Lang; error: string | null; onRetry: () => void }) {
+  return (
+    <main className="shell">
+      <header className="top">
+        <img src={brandIcon(32)} alt="" />
+        <h1 className="brand">{t(lang, 'mark')}</h1>
+      </header>
+      <div className="body">
+        {error ? (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        ) : (
+          <p className="note">{t(lang, 'openingGoogle')}</p>
+        )}
+        {error ? (
+          <button type="button" className="primary" onClick={onRetry}>
+            {t(lang, 'continueGmail')}
+          </button>
+        ) : null}
+      </div>
+    </main>
+  );
+}
+
+function Login({ lang, vault }: { lang: Lang; vault: ReturnType<typeof useVault> }) {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [phase, setPhase] = useState<OtpPhase>('idle');
@@ -176,7 +256,7 @@ function Login({
         setError(null);
         void confirm(code.trim());
       }}
-      onGoogle={() => void startGoogle(surface, vault)}
+      onGoogle={() => void startGoogle()}
     />
   );
 
@@ -206,22 +286,42 @@ function Login({
   }
 }
 
-async function startGoogle(surface: 'popup' | 'auth', vault: ReturnType<typeof useVault>): Promise<void> {
-  if (surface === 'auth') {
-    await vault.googleLogin.initOAuth({ provider: 'google' });
-    return;
-  }
-  await chrome.windows.create({
-    url: chrome.runtime.getURL('auth.html'),
-    type: 'popup',
-    width: 420,
-    height: 720,
-    focused: true,
+async function startGoogle(): Promise<void> {
+  const authUrl = chrome.runtime.getURL('auth.html');
+  await openGoogleAuthWindow(authWindowLock, {
+    authUrl,
+    contexts: async () => {
+      const found = await chrome.runtime.getContexts({});
+      return found.map((context) => ({ documentUrl: context.documentUrl, windowId: context.windowId }));
+    },
+    focus: async (windowId) => {
+      await chrome.windows.update(windowId, { focused: true });
+    },
+    open: async () => {
+      await chrome.windows.create({
+        url: authUrl,
+        type: 'popup',
+        width: 420,
+        height: 720,
+        focused: true,
+      });
+    },
   });
 }
 
-function BindGate({ store, logout }: { store: Store; logout: () => void }) {
+function BindGate({
+  store,
+  logout,
+  grantError,
+  onRetryGrant,
+}: {
+  store: Store;
+  logout: () => void;
+  grantError: string | null;
+  onRetryGrant: () => void;
+}) {
   const pairing = usePairing(store);
+  const waiting = bindAwaitingGrant(store) && !grantError && !pairing.error;
   return (
     <main className="shell">
       <BrandHeader lang={store.language} />
@@ -236,12 +336,13 @@ function BindGate({ store, logout }: { store: Store; logout: () => void }) {
           lang={store.language}
           token={pairing.token}
           copied={pairing.copied}
-          error={pairing.error}
-          notice={pairing.notice}
+          error={pairing.error ?? grantError}
+          notice={waiting ? t(store.language, 'grantingAuth') : pairing.notice}
           fallback={pairing.fallback}
           onToken={pairing.setToken}
           onCopy={() => void pairing.copyPrompt()}
           onBind={() => void pairing.bind()}
+          onRetry={grantError && !pairing.error ? onRetryGrant : null}
           onLanguage={(language) => {
             void updateStore((current) => ({ ...current, language }));
           }}
@@ -252,7 +353,17 @@ function BindGate({ store, logout }: { store: Store; logout: () => void }) {
   );
 }
 
-function Console({ store, logout }: { store: Store; logout: () => void }) {
+function Console({
+  store,
+  logout,
+  grantError,
+  onRetryGrant,
+}: {
+  store: Store;
+  logout: () => void;
+  grantError: string | null;
+  onRetryGrant: () => void;
+}) {
   const lang = store.language;
   const [tab, setTab] = useState<Tab>('wallet');
   const balances = useMainnetBalances(store);
@@ -281,6 +392,16 @@ function Console({ store, logout }: { store: Store; logout: () => void }) {
           <p className="error" role="alert">
             {store.vaultError}
           </p>
+        ) : null}
+        {grantError ? (
+          <>
+            <p className="error" role="alert">
+              {grantError}
+            </p>
+            <button type="button" className="quiet-button" onClick={onRetryGrant}>
+              {t(lang, 'retry')}
+            </button>
+          </>
         ) : null}
         {tab === 'wallet' ? (
           <AssetHome
@@ -388,24 +509,26 @@ function usePairing(store: Store) {
     const expiresAt = Date.now() + PAIR_TTL_MS;
     await updateStore((current) => ({ ...current, pair: { code, expiresAt, registered: false } }));
     const settings = await ensureBridgeToken(store.settings);
-    if (settings.bridgeToken) {
-      try {
-        await registerStoredPair(settings, { code, expiresAt });
-        if (settings.authUrl) {
-          const ownerKey = await ensureOwnerKey();
-          await authPost(settings, '/v1/pair/register', { pairCode: code, expiresAt, ownerKey });
-        }
-        await updateStore((current) =>
-          current.pair?.code === code ? { ...current, pair: { ...current.pair, registered: true } } : current,
-        );
-      } catch {
-        // The offscreen loop registers this code when the local server appears.
-      }
+    const outcome = await registerPendingPair(settings, { code, expiresAt }, {
+      registerBridge: registerStoredPair,
+      postAuth: authPost,
+      ensureOwnerKey,
+    });
+    if (outcome.registered) {
+      await updateStore((current) =>
+        current.pair?.code === code ? { ...current, pair: { ...current.pair, registered: true } } : current,
+      );
     }
     const note = buildInstallNote(code);
     const wrote = await copyText(note);
     setCopied(wrote);
     setFallback(wrote ? null : note);
+    const problem = outcome.authError ?? outcome.bridgeError;
+    if (problem) {
+      setNotice(null);
+      setError(problem);
+      return;
+    }
     setNotice(wrote ? t(lang, 'copyHint') : null);
   };
 
@@ -422,12 +545,15 @@ function usePairing(store: Store) {
     const settings = await ensureBridgeToken(store.settings);
     try {
       const ownerKey = settings.authUrl ? await ensureOwnerKey() : '';
-      const json = settings.authUrl
-        ? await authPost(settings, '/v1/pair/redeem', { pairCode: store.pair.code, bindToken: value, ownerKey })
-        : await bridgePost(settings, '/v1/pair/redeem', {
-            pairCode: store.pair.code,
-            bindToken: value,
-          });
+      const json = await redeemBindToken({
+        authUrl: settings.authUrl,
+        bridgeToken: settings.bridgeToken,
+        pairCode: store.pair.code,
+        bindToken: value,
+        ownerKey,
+        postAuth: (path, body) => authPost(settings, path, body),
+        postBridge: (path, body) => bridgePost(settings, path, body),
+      });
       await updateStore((current) => ({
         ...current,
         pair: null,
@@ -438,6 +564,7 @@ function usePairing(store: Store) {
             name: String(json.agentName || 'Agent'),
             token: value,
             boundAt: Date.now(),
+            offlineGranted: false,
           },
         ],
       }));

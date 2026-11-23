@@ -1,43 +1,77 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePrivy, useSigners } from '@privy-io/react-auth';
 import { t } from '../../shared/i18n.ts';
-import { shouldAutoGrantOffline } from '../../shared/store.ts';
+import { agentsNeedingGrant } from '../../shared/store.ts';
 import type { Store } from '../../shared/types.ts';
-import { authPost, embeddedWalletId, ensureOwnerKey, offlinePolicyBody } from '../lib/offlineClient.ts';
+import { runOfflineGrant } from '../lib/bindFlow.ts';
+import { authPost, embeddedWalletId, ensureOwnerKey } from '../lib/offlineClient.ts';
 import { updateStore } from '../lib/storage.ts';
 
-export function OfflineGrant({ store, token }: { store: Store; token: string }) {
+export function AutoGrant({
+  store,
+  attempt,
+  onError,
+}: {
+  store: Store;
+  attempt: number;
+  onError: (message: string | null) => void;
+}) {
   const { user, authenticated } = usePrivy();
   const { addSigners } = useSigners();
+  const solanaWalletId = embeddedWalletId(user, 'solana');
+  const tried = useRef(new Set<string>());
+  const failures = useRef(new Map<string, string>());
+  const signing = store.offlineSigning;
+
+  useEffect(() => {
+    tried.current.clear();
+    failures.current.clear();
+    onError(null);
+  }, [attempt, onError, signing]);
+
+  useEffect(() => {
+    const tokens = agentsNeedingGrant(store, { authenticated, solanaWalletId });
+    for (const token of tokens) {
+      if (tried.current.has(token)) continue;
+      tried.current.add(token);
+      void grantOne(token);
+    }
+
+    async function grantOne(token: string): Promise<void> {
+      const solana = store.addresses?.solana;
+      if (!solana || !solanaWalletId) return;
+      try {
+        await runOfflineGrant({
+          store,
+          token,
+          userId: store.auth?.userId || user?.id || '',
+          solanaAddress: solana,
+          evmAddress: store.addresses?.evm ?? null,
+          solanaWalletId,
+          evmWalletId: embeddedWalletId(user, 'ethereum'),
+          quorumId: store.settings.privyKeyQuorumId,
+          addSigners,
+          postAuth: authPost,
+          ensureOwnerKey,
+          updateStore,
+        });
+        failures.current.delete(token);
+      } catch (reason) {
+        failures.current.set(token, reason instanceof Error ? reason.message : t(store.language, 'vaultError'));
+      }
+      onError(failures.current.values().next().value ?? null);
+    }
+  }, [addSigners, attempt, authenticated, onError, solanaWalletId, store, user]);
+
+  return null;
+}
+
+export function OfflineGrant({ store, token }: { store: Store; token: string }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const tried = useRef(false);
   const granted = store.agents.some((agent) => agent.token === token && agent.offlineGranted);
   const enabled = store.offlineSigning !== false;
   const lang = store.language;
-  const solanaWalletId = embeddedWalletId(user, 'solana');
-
-  useEffect(() => {
-    tried.current = false;
-  }, [store.offlineSigning, token]);
-
-  useEffect(() => {
-    if (busy || tried.current) return;
-    if (
-      !shouldAutoGrantOffline({
-        offlineSigning: store.offlineSigning,
-        authenticated,
-        bound: true,
-        alreadyGranted: granted,
-        hasSolanaAddress: Boolean(store.addresses?.solana),
-        hasWalletId: Boolean(solanaWalletId),
-      })
-    ) {
-      return;
-    }
-    tried.current = true;
-    void grant();
-  }, [authenticated, granted, busy, solanaWalletId, store.addresses?.solana, store.offlineSigning]);
 
   return (
     <>
@@ -55,42 +89,6 @@ export function OfflineGrant({ store, token }: { store: Store; token: string }) 
       {error ? <p className="error">{error}</p> : null}
     </>
   );
-
-  async function grant(): Promise<void> {
-    const solana = store.addresses?.solana;
-    if (!solana || !solanaWalletId) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const quorum = store.settings.privyKeyQuorumId;
-      await addSigners({ address: solana, signers: [{ signerId: quorum }] });
-      const evm = store.addresses?.evm;
-      const evmWalletId = embeddedWalletId(user, 'ethereum');
-      if (evm && evmWalletId) {
-        await addSigners({ address: evm, signers: [{ signerId: quorum }] });
-      }
-      const ownerKey = await ensureOwnerKey();
-      const latest = { ...store, settings: { ...store.settings, ownerKey } };
-      await authPost(latest.settings, '/v1/policy', offlinePolicyBody(latest, ownerKey));
-      await authPost(latest.settings, '/v1/grant', {
-        ownerKey,
-        bindToken: token,
-        userId: store.auth?.userId || user?.id || '',
-        solanaAddress: solana,
-        evmAddress: evm,
-        solanaWalletId,
-        evmWalletId,
-      });
-      await updateStore((current) => ({
-        ...current,
-        agents: current.agents.map((agent) => (agent.token === token ? { ...agent, offlineGranted: true } : agent)),
-      }));
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : t(lang, 'vaultError'));
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function turnOff(): Promise<void> {
     setBusy(true);
@@ -112,7 +110,10 @@ export function OfflineGrant({ store, token }: { store: Store; token: string }) 
   }
 
   async function turnOn(): Promise<void> {
-    tried.current = false;
-    await updateStore((current) => ({ ...current, offlineSigning: null }));
+    await updateStore((current) => ({
+      ...current,
+      offlineSigning: null,
+      agents: current.agents.map((agent) => (agent.token === token ? { ...agent, offlineGranted: false } : agent)),
+    }));
   }
 }

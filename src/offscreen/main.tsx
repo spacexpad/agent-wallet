@@ -5,6 +5,8 @@ import { hasAppId } from '../../shared/store.ts';
 import type { Inbound, PendingApproval } from '../../shared/types.ts';
 import { handleAgentRequest } from '../lib/handleRequest.ts';
 import { isAuthChangedMessage, OFFSCREEN_RESYNC_GRACE_MS, OFFSCREEN_RESYNC_KEY, shouldResyncOffscreen } from '../lib/sessionSync.ts';
+import { registerPendingPair } from '../lib/bindFlow.ts';
+import { authPost, ensureOwnerKey } from '../lib/offlineClient.ts';
 import { bridgePost, ensureBridgeToken, loadStore, registerStoredPair, updateStore } from '../lib/storage.ts';
 import { PrivyGate, useVault } from '../privy/useVault.tsx';
 import { useExtensionStore } from '../popup/useStore.ts';
@@ -153,8 +155,12 @@ function BridgeLoop({
 async function publishPendingPair(store: Awaited<ReturnType<typeof loadStore>>): Promise<void> {
   const pair = store.pair;
   if (!pair || pair.registered || pair.expiresAt < Date.now()) return;
-  const registered = await registerStoredPair(store.settings, pair);
-  if (!registered) return;
+  const outcome = await registerPendingPair(store.settings, pair, {
+    registerBridge: registerStoredPair,
+    postAuth: authPost,
+    ensureOwnerKey,
+  });
+  if (!outcome.registered) return;
   await updateStore((current) =>
     current.pair?.code === pair.code ? { ...current, pair: { ...current.pair, registered: true } } : current,
   );

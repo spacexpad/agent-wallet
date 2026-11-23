@@ -7,7 +7,7 @@ import { evmCallFromSerialized, evmDestinations } from './evmIntent.ts';
 import { copyKeys, t } from './i18n.ts';
 import { evaluatePolicy } from './policy.ts';
 import { buildInstallNote, buildPairPrompt, MCP_TOOL_NAMES } from './prompt.ts';
-import { defaultStore, isDisplayName, offlineSigningEnabled, shouldAutoGrantOffline, walletReady } from './store.ts';
+import { agentsNeedingGrant, bindAwaitingGrant, defaultStore, isDisplayName, offlineSigningEnabled, shouldAutoGrantOffline, walletReady } from './store.ts';
 import { DEFAULT_POLICY } from './types.ts';
 import { CHAIN_ORDER } from './types.ts';
 import { embeddedPresence, missingEmbeddedWallets } from './wallets.ts';
@@ -289,10 +289,26 @@ describe('prompt and copy', () => {
   it('keeps the wallet closed until an agent is bound', () => {
     const store = defaultStore();
     assert.equal(walletReady(store), false);
-    assert.equal(
-      walletReady({ ...store, agents: [{ id: '1', name: 'ada', token: 'spx_bind_aa', boundAt: 1 }] }),
-      true,
-    );
+    const localOnly = { ...store, settings: { ...store.settings, authUrl: '' } };
+    assert.equal(walletReady({ ...localOnly, agents: [{ id: '1', name: 'ada', token: 'spx_bind_aa', boundAt: 1 }] }), true);
+  });
+
+  it('keeps the wallet on the bind screen after redeem until the authorization service grant succeeds', () => {
+    const store = {
+      ...defaultStore(),
+      addresses: { evm: null, solana: 'CEm4PnMt2kk7uLh84FrsSzwVpBqTKtAnKxzRdwJMZjJf' },
+      agents: [{ id: '1', name: 'ada', token: 'spx_bind_aa', boundAt: 1 }],
+    };
+    assert.equal(walletReady(store), false);
+    assert.equal(bindAwaitingGrant(store), true);
+    assert.deepEqual(agentsNeedingGrant(store, { authenticated: true, solanaWalletId: 'wallet-sol' }), ['spx_bind_aa']);
+    const granted = { ...store, agents: store.agents.map((agent) => ({ ...agent, offlineGranted: true })) };
+    assert.equal(walletReady(granted), true);
+    assert.equal(bindAwaitingGrant(granted), false);
+    assert.deepEqual(agentsNeedingGrant(granted, { authenticated: true, solanaWalletId: 'wallet-sol' }), []);
+    const signingOff = { ...store, offlineSigning: false };
+    assert.equal(walletReady(signingOff), true);
+    assert.deepEqual(agentsNeedingGrant(signingOff, { authenticated: true, solanaWalletId: 'wallet-sol' }), []);
   });
 
   it('keeps translations aligned and drops the unread placeholder', () => {
