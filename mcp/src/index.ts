@@ -181,7 +181,7 @@ async function main(): Promise<void> {
   console.error(`Bridge token: ${state.token}`);
   console.error(`Saved at ${FILE}`);
 
-  const mcp = new McpServer({ name: 'spacexpad-agent-wallet', version: '0.1.0' });
+  const mcp = new McpServer({ name: 'spacexpad-agent-wallet', version: '0.1.1' });
   mcp.registerTool(
     'spacexpad_pair',
     {

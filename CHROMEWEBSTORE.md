@@ -1,6 +1,6 @@
 # Chrome Web Store submission
 
-This is the copy source for the Chrome Developer Dashboard. Publishing assigns a new extension ID. The unpacked ID pinned by the `key` in `public/manifest.json` stays `kgjgdglopjkfahcipgkpnnkenjnoineo`. Do not edit that `key`. The store zip from `npm run pack:store` omits `key` so Chrome assigns the store ID. The source manifest is unchanged.
+This is the copy source for the Chrome Developer Dashboard. The published listing is `nkbahofelgkjbagiabpcddnjjckbajep`. An update keeps that id. The unpacked ID pinned by the `key` in `public/manifest.json` stays `kgjgdglopjkfahcipgkpnnkenjnoineo`. Do not edit that `key`. The store zip from `npm run pack:store` omits `key`. The source manifest is unchanged.
 
 Privy App ID (public): `cmwqh29x000hj0glajlwjht0s`
 
@@ -155,9 +155,9 @@ Data is not sold. It is not used for advertising. It is not used for credit. Sha
 - [x] `store/screenshots/settings-home.png` — 1280×800, Settings home (row list and log out)
 - [x] `store/screenshots/settings-risk.png` — 1280×800, risk policy subpage (full access and pause)
 - [x] `store/screenshots/agent.png` — 1280×800, Agent tab with offline signing
-- [x] `store/screenshots/promo-440x280.png` — optional small promo tile
+- [ ] `store/screenshots/promo-440x280.png` — do not upload. The PNG still has an alpha channel, and the store previously rejected it for that.
 - [ ] Privacy policy live at `https://spacexpad.xyz/agent-wallet/privacy` (coordinator hosts the HTML; do not deploy from this repo)
-- [ ] Privy origin and redirect updated to the new extension ID before publish
+- [ ] Privy origin `chrome-extension://nkbahofelgkjbagiabpcddnjjckbajep/` and redirect `https://nkbahofelgkjbagiabpcddnjjckbajep.chromiumapp.org/` confirmed before this update is released
 
 Screenshots use fictional demo data for `@nova`. They do not show a real balance, a PAIR_CODE, a bridge token, or a secret. Settings home, the risk-policy subpage, and the Agent tab are separate images because those are separate screens in the popup.
 
@@ -167,7 +167,7 @@ Screenshots use fictional demo data for `@nova`. They do not show a real balance
 npm run pack:store
 ```
 
-That builds, copies only `dist`, deletes `key` from the zip's `manifest.json`, and writes `store/spacexpad-agent-wallet-0.1.0.zip`. The zip excludes `.git/`, `node_modules/`, `.env`, `CHROMEWEBSTORE.md`, and source maps. Upload that zip. Do not upload the repository, and do not upload a `dist` folder that still contains `key`.
+That builds, copies only `dist`, deletes `key` from the zip's `manifest.json`, and writes `store/spacexpad-agent-wallet-0.1.1.zip`. The zip excludes `.git/`, `node_modules/`, `.env`, `CHROMEWEBSTORE.md`, and source maps. Upload that zip. Do not upload the repository, and do not upload a `dist` folder that still contains `key`. Do not add `store/screenshots/promo-440x280.png` to the zip.
 
 `public/manifest.json` must still contain `key` after packaging. The unpacked ID stays `kgjgdglopjkfahcipgkpnnkenjnoineo`.
 
@@ -175,14 +175,22 @@ That builds, copies only `dist`, deletes `key` from the zip's `manifest.json`, a
 
 First release. Keyless Solana, Ethereum, Base, and BNB Chain wallets. Privy holds the keys. Mainnet balances by default. Pair an agent with a 30-minute code. Offline signing is on by default for a bound agent, including while Chrome is closed. Full access is the default policy. A kill switch, optional USD limits, and an optional whitelist are included.
 
+## Version 0.1.1
+
+Update of the published listing. Store id `nkbahofelgkjbagiabpcddnjjckbajep`. Publisher SpaceXpad. Listing contact `hello@spacexpad.xyz`.
+
+This package includes the Google sign-in handoff fix, bind-grant authorization after redeem, and optional per-cluster RPC endpoints. An empty Settings field uses the packed public default for that cluster. A filled field overrides only that cluster. Do not put a custom RPC URL, an App Secret, or an authorization private key in the dashboard text, the zip, or a screenshot.
+
+The source manifest keeps `key`. The store zip omits that field and nothing else. The unpacked id stays `kgjgdglopjkfahcipgkpnnkenjnoineo`.
+
 ## After upload
 
-1. Upload `store/spacexpad-agent-wallet-0.1.0.zip`.
+1. Upload `store/spacexpad-agent-wallet-0.1.1.zip` as a new version of item `nkbahofelgkjbagiabpcddnjjckbajep`. Do not create a second listing.
 2. Paste the name, summary, category, language, description, and single purpose from this file.
 3. Paste one justification for every permission and every host above.
 4. Disclose the `auth.privy.io` iframe. State that CAPTCHA, Telegram, and Stripe loaders are not in the package.
 5. Enter the privacy URL and the data-use answers above.
-6. Upload the 1280×800 screenshots: sign-in, assets, Settings home, risk policy, and the Agent tab. The promo tile is optional.
-7. When Chrome assigns the store extension ID, add `chrome-extension://<new-id>/` and `https://<new-id>.chromiumapp.org/` on Privy app `cmwqh29x000hj0glajlwjht0s` before you publish. Otherwise Google login fails.
+6. Upload the 1280×800 screenshots: sign-in, assets, Settings home, risk policy, and the Agent tab. Skip `promo-440x280.png` because that file still has an alpha channel.
+7. The store id is already `nkbahofelgkjbagiabpcddnjjckbajep`. Before release, confirm `chrome-extension://nkbahofelgkjbagiabpcddnjjckbajep/` and `https://nkbahofelgkjbagiabpcddnjjckbajep.chromiumapp.org/` are allowed on Privy app `cmwqh29x000hj0glajlwjht0s`. Leave the unpacked origin in place. Google login fails if the store origin or redirect is missing.
 8. Confirm email and Google login are on, and CAPTCHA and Telegram login are off.
 9. Install the store build and sign in with Google before you release it to users.

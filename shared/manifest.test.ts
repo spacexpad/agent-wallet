@@ -4,8 +4,10 @@ import test from 'node:test';
 
 test('source manifest stays Manifest V3 and pins the unpacked id', async () => {
   const manifest = JSON.parse(await readFile(new URL('../public/manifest.json', import.meta.url), 'utf8'));
+  const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, '0.1.0');
+  assert.equal(manifest.version, '0.1.1');
+  assert.equal(pkg.version, manifest.version);
   assert.ok(String(manifest.key).startsWith('MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx2Jdh'));
   assert.deepEqual(manifest.permissions, ['storage', 'identity', 'offscreen', 'alarms', 'clipboardWrite']);
   assert.equal(manifest.permissions.includes('tabs'), false);

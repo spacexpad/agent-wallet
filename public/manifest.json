@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SpaceXpad agent wallet",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Keyless multi-chain wallet for agents. Privy holds the keys. You set the risk policy.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx2JdhKyE/T313HY7WsKSAAfFBA4T8PQ6ygo8OjWss8N+z1jPQ9A+fAJxl+91LyUtvq5ujh2nqZGDk/td2kpCT4r0ExVKBg8Mz4iBQda1OgUIZmH6AA8h8G4YPt8bmuHO/FBBlLXfSTJnvbzu5fl27w+ESwsYv8unfauzimAH174HNy64kFM9LXRpGhU6Vk+ml5bhkJF8wod92NOQcjexvtkZKr6MQ/51NSkPo/lax8T7U4I3mtovBPwKg+/scPJ5kinIKrnbhCUYSpvAJckvyV6CSnT9HC3o+lvcT23KSWVLOve4VlWQ56FzOcMPmtCK3OfiQHvDuygg2P70KaNX4QIDAQAB",
   "action": {
