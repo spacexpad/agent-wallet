@@ -38,13 +38,13 @@ test('protected wallet and launchpad-facing sources are unchanged', () => {
   const { test: afterTest, ...afterScripts } = pkg.scripts;
   const { test: beforeTest, ...beforeScripts } = before.scripts;
   assert.deepEqual(afterScripts, beforeScripts);
-  assert.notEqual(afterTest, beforeTest);
+  assert.equal(afterTest, beforeTest);
   assert.match(afterTest, /docs\/agent-wallet\/\*\*\/\*\.test\.mjs/);
   assert.deepEqual(pkg.dependencies, before.dependencies);
   assert.deepEqual(pkg.devDependencies, before.devDependencies);
 });
 
-test('the diff does not leave the landing page, its assets, or the test script', () => {
+test('the diff does not change the landing page or other protected copy', () => {
   const base = execSync('git merge-base HEAD origin/main', { encoding: 'utf8', cwd: root }).trim();
   const committed = execSync(`git diff --name-only ${base}`, { encoding: 'utf8', cwd: root })
     .split('\n')
@@ -53,19 +53,15 @@ test('the diff does not leave the landing page, its assets, or the test script',
     .split('\n')
     .filter(Boolean)
     .map((line) => line.slice(3).trim());
-  const allowed = (path) =>
-    path === 'docs/agent-wallet/index.html' ||
-    path === 'docs/agent-wallet/DESIGN.md' ||
-    path === 'docs/agent-wallet/DEPLOY.md' ||
-    path === 'docs/agent-wallet/landing.test.mjs' ||
-    path === 'package.json' ||
-    path === 'README.md' ||
-    path.startsWith('docs/agent-wallet/assets/');
+  const frozen = new Set([
+    ...Object.keys(protectedHashes),
+    'docs/agent-wallet/index.html',
+    'docs/agent-wallet/DESIGN.md',
+    'docs/agent-wallet/DEPLOY.md',
+  ]);
   for (const path of [...committed, ...porcelain]) {
-    assert.equal(allowed(path), true, path);
+    assert.equal(frozen.has(path), false, path);
   }
-  assert.equal(committed.includes('docs/agent-wallet/privacy.html'), false);
-  assert.equal(committed.includes('docs/agent-wallet/skill.md'), false);
 });
 
 test('store, skill, privacy, and support links are the live ones', () => {

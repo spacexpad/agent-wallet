@@ -109,8 +109,68 @@ export function isDisplayName(value: string): boolean {
   return /^[\p{L}\p{N}_]{2,24}$/u.test(value);
 }
 
-export function walletReady(store: { agents: readonly unknown[] }): boolean {
-  return store.agents.length > 0;
+export function walletReady(store: {
+  agents: readonly unknown[];
+  offlineSigning?: boolean | null;
+  settings?: { authUrl?: string };
+}): boolean {
+  if (store.agents.length === 0) return false;
+  if (!offlineSigningEnabled(store.offlineSigning)) return true;
+  if (!store.settings?.authUrl?.trim()) return true;
+  return store.agents.some((agent) => agentGranted(agent));
+}
+
+export function agentsNeedingGrant(
+  store: {
+    offlineSigning?: boolean | null;
+    agents: readonly unknown[];
+    addresses: { solana: string | null } | null;
+  },
+  input: { authenticated: boolean; solanaWalletId: string | null },
+): string[] {
+  if (!input.authenticated) return [];
+  const hasSolanaAddress = Boolean(store.addresses?.solana);
+  const hasWalletId = Boolean(input.solanaWalletId);
+  const tokens: string[] = [];
+  for (const agent of store.agents) {
+    const token = agentToken(agent);
+    if (!token) continue;
+    if (
+      !shouldAutoGrantOffline({
+        offlineSigning: store.offlineSigning,
+        authenticated: true,
+        bound: true,
+        alreadyGranted: agentGranted(agent),
+        hasSolanaAddress,
+        hasWalletId,
+      })
+    ) {
+      continue;
+    }
+    tokens.push(token);
+  }
+  return tokens;
+}
+
+export function bindAwaitingGrant(store: {
+  agents: readonly unknown[];
+  offlineSigning?: boolean | null;
+  settings?: { authUrl?: string };
+}): boolean {
+  if (!offlineSigningEnabled(store.offlineSigning)) return false;
+  if (!store.settings?.authUrl?.trim()) return false;
+  return store.agents.some((agent) => !agentGranted(agent));
+}
+
+function agentToken(agent: unknown): string | null {
+  if (!agent || typeof agent !== 'object' || !('token' in agent)) return null;
+  const token = agent.token;
+  return typeof token === 'string' && token.length > 0 ? token : null;
+}
+
+function agentGranted(agent: unknown): boolean {
+  if (!agent || typeof agent !== 'object' || !('offlineGranted' in agent)) return false;
+  return agent.offlineGranted === true;
 }
 
 export function hasAppId(settings: Settings): boolean {

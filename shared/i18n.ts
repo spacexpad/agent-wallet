@@ -122,6 +122,9 @@ const EN = {
     'Optional. Leave a field empty to use the public default for that network. This does not change which network the popup shows. Agent actions still use mainnet unless a request names a test network.',
   invalidRpc: 'Enter an https URL. Localhost may use http. Leave a field empty to use the public default.',
   rpcPermission: 'Chrome did not allow that RPC host. Saved endpoints are unchanged.',
+  openingGoogle: 'Opening Google…',
+  googleSignInFailed: 'Google sign-in did not finish.',
+  grantingAuth: 'Connecting this agent to the authorization service…',
 } as const;
 
 export type CopyKey = keyof typeof EN;
@@ -246,6 +249,9 @@ const ZH_CN: Record<CopyKey, string> = {
   rpcHelp: '选填。留空则该网络使用公开默认节点。这不会改变弹窗显示的网络。agent 的请求仍然默认主网，除非明确指定测试网络。',
   invalidRpc: '请填写 https 地址。本机节点可以用 http。留空则使用公开默认节点。',
   rpcPermission: 'Chrome 没有允许访问这个 RPC 主机。已保存的节点没有改动。',
+  openingGoogle: '正在打开 Google…',
+  googleSignInFailed: 'Google 登录没有完成。',
+  grantingAuth: '正在把这个 agent 接到授权服务…',
 };
 
 const ZH_TW: Record<CopyKey, string> = {
@@ -368,6 +374,9 @@ const ZH_TW: Record<CopyKey, string> = {
   rpcHelp: '選填。留空則該網路使用公開預設節點。這不會改變彈窗顯示的網路。agent 的請求仍然預設主網，除非明確指定測試網路。',
   invalidRpc: '請填寫 https 網址。本機節點可以用 http。留空則使用公開預設節點。',
   rpcPermission: 'Chrome 沒有允許存取這個 RPC 主機。已儲存的節點沒有改動。',
+  openingGoogle: '正在開啟 Google…',
+  googleSignInFailed: 'Google 登入沒有完成。',
+  grantingAuth: '正在把這個 agent 接到授權服務…',
 };
 
 const TABLES: Record<Lang, Record<CopyKey, string>> = {
