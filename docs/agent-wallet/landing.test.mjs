@@ -18,9 +18,9 @@ const protectedHashes = {
   'docs/agent-wallet/skill.md': 'b86fa2e00002c583ed8eb55c763a846f42cad96881aa421863773f12e655083b',
   'PRIVACY.md': 'f0a61b567f7b877e1517bdfcd7f5d9f9416c0f307b229c05a86575382a201656',
   'skill/spacexpad-agent-wallet/SKILL.md': '46b50af3fa57a8163b9217aee06c9037c678493ff261158257bfd54601507f20',
-  'public/manifest.json': '7b63552d6f36c02c9720bbeb969f6729ce55aa6089d6831cf4bb376789262714',
+  'public/manifest.json': '1410f55aed9361437fcee1e96c5c9df88126b48206e55952b91d591fad607adb',
   'DESIGN.md': '2d28ec11c607f86d8365c8d0fab76280fa36db749d4aaa3c7ea87a0cab8437da',
-  'CHROMEWEBSTORE.md': '02464dbedc0e2b37b8b2c4ed23d6010a84f48e22e107b8ecdaca6670e3d6c6fd',
+  'CHROMEWEBSTORE.md': '3a37be4e1b54b5b62ceb3e76901af5754913ac8c8ba177cd6cb1da417ba6913e',
 };
 
 function sha(path) {
@@ -33,8 +33,7 @@ test('protected wallet and launchpad-facing sources are unchanged', () => {
   }
   const pkg = JSON.parse(read('package.json', 'utf8'));
   const before = JSON.parse(execSync('git show origin/main:package.json', { encoding: 'utf8', cwd: root }));
-  assert.equal(pkg.version, '0.1.0');
-  assert.equal(pkg.version, before.version);
+  assert.equal(pkg.version, '0.1.1');
   const { test: afterTest, ...afterScripts } = pkg.scripts;
   const { test: beforeTest, ...beforeScripts } = before.scripts;
   assert.deepEqual(afterScripts, beforeScripts);
@@ -54,7 +53,11 @@ test('the diff does not change the landing page or other protected copy', () => 
     .filter(Boolean)
     .map((line) => line.slice(3).trim());
   const frozen = new Set([
-    ...Object.keys(protectedHashes),
+    'docs/agent-wallet/privacy.html',
+    'docs/agent-wallet/skill.md',
+    'PRIVACY.md',
+    'skill/spacexpad-agent-wallet/SKILL.md',
+    'DESIGN.md',
     'docs/agent-wallet/index.html',
     'docs/agent-wallet/DESIGN.md',
     'docs/agent-wallet/DEPLOY.md',

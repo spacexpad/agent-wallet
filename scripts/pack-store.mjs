@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'store');
-const zipPath = join(outDir, 'spacexpad-agent-wallet-0.1.0.zip');
+const pkg = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+const zipPath = join(outDir, `spacexpad-agent-wallet-${pkg.version}.zip`);
 
 const BLOCKED = [
   'telegram-login.js',
@@ -77,9 +78,13 @@ async function scanZip(path) {
     failures.push('zip contains a path that must stay out of the store package');
   }
   if (!names.includes('manifest.json')) failures.push('manifest.json is missing from the zip root');
+  if (names.some((name) => name.endsWith('promo-440x280.png'))) {
+    failures.push('promo-440x280.png has an alpha channel and must stay out of the zip');
+  }
 
   const manifestText = await capture('unzip', ['-p', path, 'manifest.json']);
   const manifest = JSON.parse(manifestText);
+  if (manifest.version !== pkg.version) failures.push(`packaged manifest version is ${manifest.version}, expected ${pkg.version}`);
   if (Object.prototype.hasOwnProperty.call(manifest, 'key')) failures.push('packaged manifest.json still has a key field');
   if (manifestText.includes(SOURCE_KEY_PREFIX)) failures.push('packaged manifest still contains the unpacked key material');
   if (manifest.manifest_version !== 3) failures.push('packaged manifest is not Manifest V3');

@@ -123,4 +123,4 @@ The public landing page is `docs/agent-wallet/index.html`, with files only under
 npm run pack:store
 ```
 
-The zip is `store/spacexpad-agent-wallet-0.1.0.zip`. It is built from `dist` only, and `key` is removed from the zip's manifest. `public/manifest.json` keeps `key`, so the unpacked id stays `kgjgdglopjkfahcipgkpnnkenjnoineo`. After Chrome assigns a store id, add `chrome-extension://<new-id>/` and `https://<new-id>.chromiumapp.org/` on Privy app `cmwqh29x000hj0glajlwjht0s` before publishing, or Google login fails.
+The zip is `store/spacexpad-agent-wallet-0.1.1.zip`. It is built from `dist` only, and `key` is removed from the zip's manifest. `public/manifest.json` keeps `key`, so the unpacked id stays `kgjgdglopjkfahcipgkpnnkenjnoineo`. The published listing is `nkbahofelgkjbagiabpcddnjjckbajep`. Confirm `chrome-extension://nkbahofelgkjbagiabpcddnjjckbajep/` and `https://nkbahofelgkjbagiabpcddnjjckbajep.chromiumapp.org/` on Privy app `cmwqh29x000hj0glajlwjht0s` before release, or Google login fails.
