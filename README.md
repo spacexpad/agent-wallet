@@ -117,6 +117,8 @@ RPC URLs live in `config.example.json` and can be overridden in `config.json`. P
 
 `CHROMEWEBSTORE.md` is the dashboard copy. `PRIVACY.md` matches the page to host at `https://spacexpad.xyz/agent-wallet/privacy` (`docs/agent-wallet/privacy.html`). Do not deploy that page from this repo, and do not replace `/`, `/skill`, `/skill.md`, or `/agents`.
 
+The public landing page is `docs/agent-wallet/index.html`, with files only under `docs/agent-wallet/assets/`. Putting it on `https://spacexpad.xyz/agent-wallet/` is a path-isolated copy into the existing Pages output, described in `docs/agent-wallet/DEPLOY.md`. Do not deploy it from this repository, do not overwrite the live privacy page or `docs/agent-wallet/skill.md`, and do not add a catch-all redirect.
+
 ```bash
 npm run pack:store
 ```
