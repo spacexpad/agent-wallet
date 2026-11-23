@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SpaceXpad Agent Wallet</title>
+    <meta
+      name="description"
+      content="Keyless Chrome wallet for agents on Solana, Ethereum, Base, and BNB Chain. Privy holds the keys. You set who can sign."
+    />
+    <link rel="canonical" href="https://spacexpad.xyz/agent-wallet/" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#121524" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="SpaceXpad Agent Wallet" />
+    <meta
+      property="og:description"
+      content="Keyless Chrome wallet for agents on Solana, Ethereum, Base, and BNB Chain. Privy holds the keys. You set who can sign."
+    />
+    <meta property="og:url" content="https://spacexpad.xyz/agent-wallet/" />
+    <meta property="og:image" content="https://spacexpad.xyz/agent-wallet/assets/mark.png" />
+    <meta property="og:image:width" content="128" />
+    <meta property="og:image:height" content="128" />
+    <meta property="og:image:alt" content="SpaceXpad toolbar icon" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="icon" href="assets/mark.png" type="image/png" sizes="128x128" />
+    <link rel="preload" href="assets/fonts/sora-latin-600.woff2" as="font" type="font/woff2" crossorigin />
+    <style>
+      @font-face {
+        font-family: Sora;
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url("assets/fonts/sora-latin-400.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: Sora;
+        font-style: normal;
+        font-weight: 600;
+        font-display: swap;
+        src: url("assets/fonts/sora-latin-600.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "IBM Plex Mono";
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url("assets/fonts/ibm-plex-mono-latin-400.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "IBM Plex Mono";
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+        src: url("assets/fonts/ibm-plex-mono-latin-500.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+
+      :root {
+        color-scheme: dark;
+        --bg: #121524;
+        --surface: #1b2038;
+        --surface-2: #14182b;
+        --border: #38436e;
+        --fg: #f1f5f9;
+        --muted: #94a3b8;
+        --accent: #38bdf8;
+        --link: #7dd3fc;
+        --accent-fg: #082033;
+        --font: Sora, ui-sans-serif, system-ui, sans-serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html { background: var(--bg); }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font: 400 1.0625rem/1.6 var(--font);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+      }
+      img { display: block; max-width: 100%; }
+      a { color: var(--link); text-underline-offset: 0.18em; }
+      a:hover { color: #e0f2fe; }
+      a, .cta { touch-action: manipulation; }
+      :focus { outline: none; }
+      :focus-visible {
+        outline: 2px solid var(--link);
+        outline-offset: 3px;
+      }
+      ::selection { background: #1e3a5f; color: var(--fg); }
+
+      .skip {
+        position: absolute;
+        left: 1rem;
+        top: -4rem;
+        background: var(--accent);
+        color: var(--accent-fg);
+        text-decoration: none;
+        padding: 0.6rem 0.9rem;
+        border-radius: 8px;
+        z-index: 2;
+      }
+      .skip:hover { color: var(--accent-fg); }
+      .skip:focus {
+        position: fixed;
+        top: 0.75rem;
+        z-index: 3;
+      }
+
+      .wrap {
+        width: min(46rem, calc(100% - 2rem));
+        margin-inline: auto;
+      }
+      .site-head {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: var(--surface-2);
+        border-bottom: 1px solid var(--border);
+      }
+      .site-head .wrap {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem 1.25rem;
+        min-height: 4.25rem;
+        padding-block: 0.65rem;
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.7rem;
+        min-height: 44px;
+        color: var(--fg);
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .brand img {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        image-rendering: pixelated;
+      }
+      .nav {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.25rem 1rem;
+        margin-left: auto;
+      }
+      .nav a:not(.cta) {
+        color: var(--fg);
+        text-decoration: none;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+      }
+      .nav a:not(.cta):hover { color: var(--link); }
+      .cta {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0.55rem 1rem;
+        border-radius: 10px;
+        background: var(--accent);
+        color: var(--accent-fg);
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .cta:hover { background: #7dd3fc; color: var(--accent-fg); }
+      a, .cta {
+        transition: background-color 160ms cubic-bezier(0.2, 0, 0, 1), color 160ms cubic-bezier(0.2, 0, 0, 1);
+      }
+
+      main { padding: 2.5rem 0 4rem; }
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 2rem 3rem;
+        align-items: start;
+        padding-bottom: 2.5rem;
+        border-bottom: 1px solid var(--border);
+      }
+      .kicker {
+        margin: 0 0 0.8rem;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 0;
+        max-width: 14ch;
+        font-size: clamp(2.3rem, 5vw, 3.5rem);
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        line-height: 1.05;
+        text-wrap: balance;
+      }
+      .lede {
+        max-width: 38rem;
+        margin: 1.1rem 0 0;
+        color: var(--muted);
+        font-size: 1.125rem;
+      }
+      .lede strong { color: var(--fg); font-weight: 600; }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.9rem 1.25rem;
+        margin: 1.5rem 0 0.9rem;
+      }
+      .id {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      code, .mono {
+        font-family: var(--mono);
+        font-weight: 400;
+        font-size: 0.92em;
+      }
+      code {
+        overflow-wrap: anywhere;
+        background: var(--surface-2);
+        border-radius: 6px;
+        padding: 0.08em 0.35em;
+      }
+      .mark { margin: 0; }
+      .mark img {
+        width: 96px;
+        height: 96px;
+        border-radius: 22px;
+        border: 1px solid var(--border);
+        image-rendering: pixelated;
+        background: var(--surface-2);
+      }
+      .mark figcaption {
+        margin-top: 0.45rem;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.75rem;
+      }
+
+      section { padding-top: 2.4rem; }
+      section[id] { scroll-margin-top: 6.5rem; }
+      h2 {
+        margin: 0 0 0.9rem;
+        font-size: 1.55rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      h3 {
+        margin: 0 0 0.35rem;
+        font-size: 1.15rem;
+        font-weight: 600;
+      }
+      .steps {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        max-width: 40rem;
+      }
+      .steps > li {
+        padding: 1.15rem 0;
+        border-top: 1px solid var(--border);
+      }
+      .steps > li:last-child { border-bottom: 1px solid var(--border); }
+      .steps h3::before {
+        content: counter(step, decimal-leading-zero);
+        counter-increment: step;
+        display: block;
+        margin-bottom: 0.3rem;
+        color: var(--link);
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+      }
+      .steps { counter-reset: step; }
+      p { max-width: 40rem; }
+      .note {
+        margin: 0.8rem 0 0;
+        padding: 0.85rem 1rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        color: var(--fg);
+      }
+      .note p { margin: 0.7rem 0 0; }
+      .note p:first-child { margin-top: 0; }
+      .env {
+        margin: 0.75rem 0 0;
+        padding: 0.7rem 0.8rem;
+        background: var(--surface-2);
+        border-radius: 8px;
+        color: var(--link);
+        font-family: var(--mono);
+        font-size: 0.82rem;
+        line-height: 1.45;
+      }
+      .env .keep { white-space: nowrap; }
+
+      .split {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+        max-width: 40rem;
+        margin: 0;
+      }
+      .split div {
+        margin: 0;
+        padding: 0.9rem 1rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+      }
+      .split dt { font-weight: 600; }
+      .split dd { margin: 0.25rem 0 0; color: var(--muted); }
+
+      .controls { margin: 0; max-width: 40rem; }
+      .controls div {
+        display: grid;
+        grid-template-columns: 15rem minmax(0, 1fr);
+        gap: 0.75rem 1.25rem;
+        padding: 0.95rem 0;
+        border-top: 1px solid var(--border);
+      }
+      .controls div:last-child { border-bottom: 1px solid var(--border); }
+      .controls dt { margin: 0; font-family: var(--mono); font-size: 0.92rem; font-weight: 500; }
+      .controls dd { margin: 0; color: var(--muted); }
+
+      .site-foot {
+        border-top: 1px solid var(--border);
+        padding: 1.5rem 0 calc(1.75rem + env(safe-area-inset-bottom));
+        color: var(--muted);
+      }
+      .site-foot .wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem 1.25rem;
+        align-items: baseline;
+      }
+      .site-foot p { margin: 0; max-width: none; }
+
+      @media (max-width: 720px) {
+        .hero { grid-template-columns: 1fr; }
+        .mark { order: -1; }
+        .nav { margin-left: 0; width: 100%; }
+        .nav .cta { flex: 1 1 100%; }
+        .controls div { grid-template-columns: 1fr; gap: 0.3rem; }
+        .split { grid-template-columns: 1fr; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        a, .cta { transition: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-head">
+      <div class="wrap">
+        <a class="brand" href="https://spacexpad.xyz/agent-wallet/">
+          <img src="assets/mark.png" width="128" height="128" alt="" />
+          <span>SpaceXpad Agent Wallet</span>
+        </a>
+        <nav class="nav" aria-label="On this page">
+          <a href="#install">Install</a>
+          <a href="#keys">Keys</a>
+          <a href="#limits">Limits</a>
+          <a class="cta" href="https://chromewebstore.google.com/detail/spacexpad-agent-wallet/nkbahofelgkjbagiabpcddnjjckbajep">Add to Chrome</a>
+        </nav>
+      </div>
+    </header>
+    <main id="main">
+      <div class="wrap">
+        <div class="hero">
+          <div>
+            <p class="kicker">Chrome Web Store · version 0.1.0</p>
+            <h1>A keyless wallet your agent can sign with.</h1>
+            <p class="lede">
+              Privy creates the wallets and holds the keys for Solana, Ethereum, Base, and BNB&nbsp;Chain.
+              You sign in with email or Google, bind an agent, and decide what that agent may sign.
+              <strong>There is no seed phrase and no private-key export.</strong>
+            </p>
+            <p class="actions">
+              <a class="cta" href="https://chromewebstore.google.com/detail/spacexpad-agent-wallet/nkbahofelgkjbagiabpcddnjjckbajep">Add to Chrome</a>
+              <a href="https://spacexpad.xyz/agent-wallet/skill.md">Read the setup document</a>
+            </p>
+            <p class="id">
+              Extension ID
+              <code translate="no">nkbahofelgkjbagiabpcddnjjckbajep</code>
+            </p>
+          </div>
+          <figure class="mark">
+            <img
+              src="assets/mark.png"
+              width="128"
+              height="128"
+              alt=""
+              fetchpriority="high"
+            />
+            <figcaption>Extension icon</figcaption>
+          </figure>
+        </div>
+
+        <section id="install" aria-labelledby="install-title">
+          <h2 id="install-title">Install, sign in, bind</h2>
+          <ol class="steps">
+            <li>
+              <h3>Add the extension</h3>
+              <p>
+                Install from the Chrome Web Store listing above. The item name is SpaceXpad agent wallet, version&nbsp;0.1.0.
+                Match the extension ID before you trust a copy.
+              </p>
+            </li>
+            <li>
+              <h3>Sign in</h3>
+              <p>
+                Open the toolbar popup. Use <span translate="no">Email</span>, then <span translate="no">Send code</span> and <span translate="no">Confirm code</span>.
+                Or choose <span translate="no">Continue with Google</span>. Google sign-in opens its own window.
+                The popup also offers 简体中文 and 繁體中文.
+                Privy creates the embedded wallets. The extension never asks for a seed phrase.
+              </p>
+            </li>
+            <li>
+              <h3>Bind an agent</h3>
+              <p>
+                The wallet stays closed until an agent is bound. There is no skip.
+                On <span translate="no">Bind an agent</span>, choose <span translate="no">Copy prompt</span> and give that note to the agent.
+                It includes a <code translate="no">PAIR_CODE</code> that expires in 30&nbsp;minutes.
+                The agent calls <code translate="no">spacexpad_pair</code> and shows a token that starts with <code translate="no">spx_bind_</code>.
+                Paste it into <span translate="no">Binding token</span> and choose <span translate="no">Bind</span>.
+              </p>
+              <div class="note">
+                <p>
+                  Install the MCP server on the agent’s own computer first. Use your computer only when that agent has no runtime of its own.
+                  Set <code translate="no">SPACEXPAD_AUTH_URL</code> to the authorization service the extension already uses.
+                </p>
+                <p class="env" translate="no"><span class="keep">SPACEXPAD_AUTH_URL=</span><wbr /><span class="keep">https://</span><wbr /><span class="keep">spacexpad-agent-wallet-auth</span><wbr /><span class="keep">.timmy2048.workers.dev</span></p>
+                <p>
+                  A missing or different value will not match the binding token.
+                  The <a href="https://spacexpad.xyz/agent-wallet/skill.md">setup document</a> has the command and the client configuration.
+                  Do not paste a bridge token into Settings.
+                </p>
+              </div>
+            </li>
+          </ol>
+        </section>
+
+        <section id="keys" aria-labelledby="keys-title">
+          <h2 id="keys-title">What the wallet holds</h2>
+          <dl class="split">
+            <div>
+              <dt>Solana</dt>
+              <dd>Its own address.</dd>
+            </div>
+            <div>
+              <dt>Ethereum, Base, and BNB&nbsp;Chain</dt>
+              <dd>One shared EVM address.</dd>
+            </div>
+          </dl>
+          <p>
+            The popup shows mainnet balances by default. A failed read stays an error. It is not shown as zero.
+            Agent tools use mainnet unless the request names devnet or testnet.
+            Solana test traffic is devnet. Ethereum and Base testnet is Sepolia. BNB&nbsp;Chain testnet is BSC testnet.
+          </p>
+          <p>
+            A bound agent can read balances, sign, and send inside the permissions you granted, with no confirmation click.
+            After you sign in and bind an agent, offline signing is on, so that can continue while Chrome is closed.
+            Privy still holds the keys. The extension does not receive a seed or an exported private key.
+          </p>
+          <p>
+            The <a href="https://spacexpad.xyz/">SpaceXpad launchpad</a> is a separate product and is still on Solana devnet.
+            This extension does not make that site a mainnet launchpad.
+          </p>
+          <p>Chrome Web Store version 0.1.0 does not include custom RPC endpoints.</p>
+        </section>
+
+        <section id="limits" aria-labelledby="limits-title">
+          <h2 id="limits-title">Pause, revoke, and the default</h2>
+          <p>
+            A bound agent signs and sends on its own, inside what you granted.
+            Offline signing and full access are both the default. That is the risk until you change them.
+          </p>
+          <dl class="controls">
+            <div>
+              <dt>Full access</dt>
+              <dd>
+                Default, under Settings, then Risk policy. Sign and send have no USD cap.
+                An empty whitelist does not block signing. Choose Enforce USD limits on that same screen to set a single-transaction cap and a daily cap.
+                If a limit is on and a price is missing, the extension refuses the signature. It does not invent a transaction hash.
+              </dd>
+            </div>
+            <div>
+              <dt>Pause all agents</dt>
+              <dd>
+                Settings, then Risk policy. Signing and sending stop for every agent. Balance reads still work.
+                The popup says “Agents are paused.” Resume is on that line and on the same Risk policy control.
+              </dd>
+            </div>
+            <div>
+              <dt>Turn off offline signing</dt>
+              <dd>
+                Agent tab, on the bound agent. Use this when you do not want sign and send while Chrome is closed.
+                Turn on offline signing is the control that grants it again.
+              </dd>
+            </div>
+            <div>
+              <dt>Remove</dt>
+              <dd>
+                Agent tab, on that agent’s row. The binding is revoked.
+                An unbound, removed, or paused request is rejected and nothing is signed.
+              </dd>
+            </div>
+          </dl>
+        </section>
+      </div>
+    </main>
+    <footer class="site-foot">
+      <div class="wrap">
+        <a href="https://spacexpad.xyz/agent-wallet/privacy">Privacy</a>
+        <a href="https://spacexpad.xyz/agent-wallet/skill.md">Setup document</a>
+        <a href="mailto:hello@spacexpad.xyz">hello@spacexpad.xyz</a>
+        <p>Store version 0.1.0. The launchpad remains Solana devnet.</p>
+      </div>
+    </footer>
+  </body>
+</html>

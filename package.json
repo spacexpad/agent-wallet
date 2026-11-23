@@ -8,7 +8,7 @@
   },
   "scripts": {
     "icons": "node scripts/gen-icons.mjs",
-    "test": "node --experimental-strip-types --test \"shared/**/*.test.ts\" \"src/**/*.test.ts\" \"mcp/**/*.test.ts\"",
+    "test": "node --experimental-strip-types --test \"shared/**/*.test.ts\" \"src/**/*.test.ts\" \"mcp/**/*.test.ts\" \"docs/agent-wallet/**/*.test.mjs\"",
     "prebuild": "node scripts/gen-icons.mjs",
     "build": "tsc --noEmit && vite build && node scripts/copy-config.mjs",
     "pack:store": "node scripts/pack-store.mjs",
